@@ -605,4 +605,21 @@ Two temp-0 `Hello` runs, `--spec-draft-n-max 1`, logs `htp-qwen-mtp-fuse.log` an
 
 The second sentence is the failure already seen when a draft-context write was kept in place of a recomputed row. `llama_kv_cache` views no-op `seq_rm` and `apply_ubatch` (`TAG_KV_CACHE_SHARE_CELLS`), so the shared layer does not commit the bonus step the way the separate draft cache did. Leave `LLAMA_FUSE_MTP_VERIFY` unset. `run-mtp-fuse.cmd` is the reproducer.
 
-Flag off, same 128-token completion, log `htp-qwen-fuse-off.log`: PHP through "You have an", replay hit 1381 ops, **28.56 tok/s**, 35.01 ms/token. No fuse line. One run. **28.4 stands.** The installed skel is still the 844176-byte PHP file. `absorb_shexp_down` stays uncalled.
+Flag off, same 128-token completion, log `htp-qwen-fuse-off.log`: PHP through "You have an", replay hit 1381 ops, **28.56 tok/s**, 35.01 ms/token. No fuse line. One run. The installed skel is still the 844176-byte PHP file. `absorb_shexp_down` stays uncalled.
+
+## 2026-09-26 19:55 — top-k alias is overlap, and the PHP pair is 28.42
+
+The 17:40 steady graph runs `MOE+TOPK` on layer 39 only. Layers 0–38 keep softmax, argsort, get_rows, and `MOE+WNORM` (about 44 µs). The matcher skip on the decode graph is `overlap`. The prompt graph skips on `logits` because the row is wider than one token. Logits are a dead 1 KB slot the allocator reuses for an output of the same chain.
+
+`op_moe_topk` copies the 256 logits into scratch before it writes the index row or the 8 weights, so that alias is safe. The installed skel still rejects `src->data == dst->data` with `NO-SUPPORT`. Dropping the host overlap check fused all 40 rows (count 40) and the DSP aborted. Log `htp-qwen-topk-all.log.err`. No text.
+
+The overlap check is restored. `argsort-ops.c` allows the alias for a later skel. Rebuilding v81 from that source produced another 848432-byte so (sha256 `52A4D490D48524236D300F53C2A8DFDB4DD81886ED04F71BB89C9901C2453F52`). That is not the older SHEXP link (`FD3AE079…`) and it was not copied into `pkg-wos/lib`. Installed skel remains 844176 bytes, sha256 `28F47160…`.
+
+Same command as the 28.4 pair, restored host, no new fuse. Both reach "You have an". Neither INSERT has an email column. Replay hit 1381 ops. Graphs reused 126/128.
+
+| log | tok/s | ms/token |
+|---|---:|---:|
+| `htp-qwen-topk-revert.log` | 28.46 | 35.14 |
+| `htp-qwen-topk-revert2.log` | 28.42 | 35.19 |
+
+35.19 and 35.14 beat 35.21 and 35.23. The quoted pair is **28.42 tok/s**. `pkg-wos/bin/ggml-opencl.dll` is the stub, 102400 bytes. `HTP_OP_MAX_BUFS` is 64. The Q5_0 backup was not restored. `absorb_shexp_down` is not called.
