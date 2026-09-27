@@ -569,3 +569,40 @@ Same 128-token command (`GGML_HEXAGON_OPBATCH=3072`, `-n 128 -b 128 -ub 128 -p H
 Codex (read-only, gpt-5.6-sol) on `common_speculative_impl_draft_mtp`: `process()` row k is `(h[k-1], x[k])`, logits for `x[k+1]`. The next `draft()` seed is `(h[last], id_last)` with `id_last == x[last+1]`, logits for `x[last+2]`. Sampling `process()`'s last-row MTP logits is the wrong draft. The plain decoder graph must not grow a blk.40 tail just because the GGUF contains MTP weights. The step that would actually share the HTP submit is an opt-in verification graph that appends the MTP block to the target forward, then skips the separate catch-up `llama_decode(ctx_dft)`.
 
 A smaller host shortcut was measured and reverted. `draft()` already decodes `id_last`. The server then `seq_rm`s that position and `process()` decodes it again. Keeping that position and skipping it in the catch-up fired: `mtp keep pos 13 id 9419`, then `skipped 1, keeping 1`. Two temp-0 `Hello` runs (`htp-qwen-mtp-keep.log`, `htp-qwen-mtp-keep2.log`) printed "questions" where `htp-qwen-mtp3.log` printed "a question", and generation stayed 19.4–19.5 tok/s against the old short-reply 18.9–19.5. The source is back to `npu-htp-decode` without that skip, and `llama-cli` was rebuilt from it. Do not sample the catch-up logits. Do not keep a draft-context write that `process()` would have recomputed from the target hidden state. The installed skel is the v81 prefix link, `pkg-wos/lib/libggml-htp-v81.so`, 844176 bytes, catalog signed after that copy. The file beside the build-tree catalog is still the stale 839952-byte so from 17:52. A copy of the previous PHP skel is `npu_campaign/libggml-htp-v81-php-839952.so`. `pkg-wos/bin/ggml-opencl.dll` is the stub, 102400 bytes. `HTP_OP_MAX_BUFS` is 64. The Q5_0 backup was not restored. Output weight was not requantized.
+
+## 2026-09-26 19:13 — shared-expert down epilogue changed the INSERT
+
+The 17:40 token's next concentrated pile after the expert-weight mul is the shared-expert down GEMV: 40 `MUL_MAT`s, 664 µs, about 16 µs each, already on the DMA band (Q8_0 or Q5_K, K=512, N=2048). Around it, the SwiGLU is 247 µs and the f32 gate dot is 274 µs. Both are almost all launch. `ADD+SG` is another 308 µs.
+
+`HTP_OP_SHEXP_EP` keeps the down GEMV as `op_matmul` with that op's kernel params. It runs SwiGLU with the same HVX sigmoid and `hvx_mul_mul_f32_aa`, the gate dot with `vec_dot_f32_f32_aa_1x1`, then the same sigmoid-scale-add as `ADD+SG`. Decode only. `absorb_shexp_down` is the matcher. It is not called.
+
+Same 128-token command (`GGML_HEXAGON_OPBATCH=3072`, `-n 128 -b 128 -ub 128 -p Hello --temp 0 --device HTP0 -ngl 99 -fit off --load-mode none`). Log `htp-qwen-shexpep.log`.
+
+- the fuse line fired: `fused shared-expert down into SHEXP+EP (k 512 n 2048)`. `ADD+SG` logged first, then this op replaced it. No RMS line. No GDN-state line
+- steady graph is 1261 ops (1381 minus 40 SwiGLUs, 40 downs, and 40 gate dots). Replay captured uid 20, then hit. Graphs reused 126/128
+- decode: 4424.52 ms / 128 = **34.57 ms/token = 28.93 tok/s**. Seed 2302241197
+- the text is PHP, but the INSERT is `username, password, email` and the run ends at `violation: 10`. It does not contain "You have an"
+
+28.93 is faster than 28.4 and is not the rate to keep. The installed skel is the 844176-byte PHP file again. Its catalog is `npu_campaign/libggml-htp-php-844176.cat` (verifies that so). A copy of the so is `npu_campaign/libggml-htp-v81-php-844176.so`. The v81 prefix link that contains `SHEXP+EP` is 848432 bytes and is not installed. The so beside the build-tree catalog was overwritten with that 848432-byte file and the catalog there matches it. Do not copy that pair into `pkg-wos/lib`.
+
+Confirm on the restored skel, log `htp-qwen-shexpep-off.log`: PHP through "You have an", no email column, seed 1241911316, **28.62 tok/s**, 34.94 ms/token, replay hit 1381 ops, graphs reused 126/128. No `SHEXP+EP` line. `ADD+NW` and `ADD+SG` still log. One run is not a pair. **28.4 stands.** `pkg-wos/bin/ggml-opencl.dll` is the stub, 102400 bytes. `HTP_OP_MAX_BUFS` is 64. The Q5_0 backup was not restored. Output weight was not requantized.
+
+## 2026-09-26 19:30 — fused MTP verify tail drifted
+
+Codex (read-only, gpt-5.6-sol, session `01a0e09d-e137-7262-95a2-69c81bc3d344`) on the one-submit splice:
+
+- For one sequence, `h_shift[0]` is `pending_h` and `h_shift[k]` is `t_h_nextn[k-1]`. A one-token batch is only `pending_h`.
+- The tail and the later bonus `draft()` have to use the same MTP KV. The target hybrid cache normally omits layer `n_layer()`. The draft context owns that layer today.
+- A construction-time flag has to participate in `llm_graph_params::allow_reuse`. With the flag off, memory creation and the decoder graph stay on the previous path.
+- `draft()` still decodes the bonus token. The tail's last row predicts the token sampled from the target, which is the token `draft()` then consumes.
+
+`LLAMA_FUSE_MTP_VERIFY=1` is that flag. The target graph, after `t_h_nextn` is saved, shifts `pending_h` with `t_h_nextn` and runs blk.40 attention so its K/V land in the target cache. The MoE and the MTP LM head stay out of that graph. The draft context is created with `ctx_other` set and its layer-40 K/V tensors alias the target attention cache. `is_mem_shared` then skips the catch-up `llama_decode(ctx_dft)`. `process()` and `accept()` copy the accepted hidden row into the seed the next target graph reads.
+
+Two temp-0 `Hello` runs, `--spec-draft-n-max 1`, logs `htp-qwen-mtp-fuse.log` and `htp-qwen-mtp-fuse2.log`:
+
+- first reply keeps "a question" and the banner is Generation 22.2 t/s
+- second reply says "questions" and the banner is Generation 21.3 t/s
+
+The second sentence is the failure already seen when a draft-context write was kept in place of a recomputed row. `llama_kv_cache` views no-op `seq_rm` and `apply_ubatch` (`TAG_KV_CACHE_SHARE_CELLS`), so the shared layer does not commit the bonus step the way the separate draft cache did. Leave `LLAMA_FUSE_MTP_VERIFY` unset. `run-mtp-fuse.cmd` is the reproducer.
+
+Flag off, same 128-token completion, log `htp-qwen-fuse-off.log`: PHP through "You have an", replay hit 1381 ops, **28.56 tok/s**, 35.01 ms/token. No fuse line. One run. **28.4 stands.** The installed skel is still the 844176-byte PHP file. `absorb_shexp_down` stays uncalled.
