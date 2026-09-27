@@ -5,8 +5,26 @@
 
 # Upstream working trees (maintained as their own repositories)
 /llama.cpp/
+/llama.cpp-hexagon/
 /vllm/
 /upstream/
+
+# NPU campaign measurements. The write-up is npu_campaign/FINDINGS.md.
+/npu_campaign/**/*.log
+/npu_campaign/**/*.log.err
+/npu_campaign/**/*.err
+/npu_campaign/**/*.bin
+/npu_campaign/**/*.so
+/npu_campaign/**/*.dll
+/npu_campaign/**/*.exe
+/npu_campaign/**/*.cat
+/npu_campaign/**/*.lib
+/native_nvfp4/island_bw/*.exe
+/native_nvfp4/island_bw/*.pdb
+/native_nvfp4/island_bw/*.obj
+/native_nvfp4/island_bw/dsp/*.so
+/native_nvfp4/island_bw/dsp/*.obj
+/native_nvfp4/island_bw/dsp/*.cat
 
 # Accelerator logs and local research downloads
 /logs/

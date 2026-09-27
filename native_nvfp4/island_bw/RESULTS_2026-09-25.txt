@@ -1,0 +1,64 @@
+Snapdragon X2 Elite Extreme, Zenbook A16 UX3607OA, AC power.
+Nominal pin rate: 192-bit LPDDR5x-9523 = 228 GB/s (decimal, bytes/s / 1e9).
+Probe: native_nvfp4/island_bw/island_bw.cpp, zig c++ -O3.
+
+CPU streaming, 1 GiB buffers, NEON 16-byte loads, median of 5.
+Read moves N, copy 2N, triad 3N.
+
+  LLC 0, 6 cores (efficiency class 0):  read 69.2   copy 59.7   triad 62.3
+  LLC 6, 6 cores (efficiency class 1):  read 80.9   copy 65.8   triad 69.5
+  LLC 12, 6 cores (efficiency class 1): read 80.9   copy 65.8   triad 69.6
+  all 18 cores:                         read 153.9  copy 100.9  triad 115.0
+
+Single thread, 1 GiB read: class 0 = 49.5 GB/s, class 1 = 68.7 GB/s.
+81+81+69 = 231, above the pin rate, but the three clusters together deliver 154.
+They share one DRAM path.
+
+GPU, this session: OpenCL fast-failed in CB.dll (0xC0000409), bwbench and the
+new probe both died before a kernel. Prior numbers on this Adreno X2-90:
+  2026-08-22 event-timed 16-byte read, 256 MiB: 129 GB/s
+  2026-05-22 adreno-bw-bench/out.txt, 1 GiB float: copy 174, scale 177, add 157, triad 159
+
+NPU, QAIRT 2.45 HTP user-driver path (classic skel open returned 0x80000406,
+then the user driver ran the graph). Hexagon v81, 1 NSP, VTCM 8 MB.
+FP16 Relu, graphExecute wall, output matched the input pattern.
+Compiler DDR count was one read plus one write, no extra spill at 64 and 256 MiB.
+
+  16 MiB:  14.63 GB/s
+  64 MiB:  14.61 GB/s
+  256 MiB: 14.86 GB/s
+
+Profiled device-only time failed afterwards (DMA 6006), so this is wall time
+of a successful execute, not an on-DSP counter. The rate is flat from 16 to
+256 MiB, so it is the sustained path, not launch overhead.
+
+Follow-up sweep the same day, npu_bridge.cpp. Host memcpy of 128 MiB
+(256 MiB moved) was 66 GB/s, so the NPU number is not a slow CPU copy.
+
+Raw client buffers, compiler DDR byte counts matched one read plus one write
+except ElementWiseAdd, which read about twice and wrote once:
+
+  fp16 ReLU   8 MiB   13.6 GB/s   (2 MiB extra spill, tensor did not tile cleanly)
+  uint8 ReLU  8 MiB   22.4 GB/s   (exact 8+8 MiB, zero spill)
+  fp32 ReLU   8 MiB   16.0 GB/s
+  fp16 Add    8 MiB   14.3 GB/s
+  fp16 ReLU  32 MiB   14.1 GB/s
+  fp32 ReLU  32 MiB   17.9 GB/s
+  fp16 Add   32 MiB   16.5 GB/s
+  fp16 ReLU 128 MiB   15.0 GB/s
+  fp32 ReLU 128 MiB   18.2 GB/s
+  fp16 Add  128 MiB   17.0 GB/s
+  fp16 ReLU 256 MiB   12.9 GB/s   (context had already accumulated ~2 GB)
+
+uint8 above 8 MiB failed prepare: the whole tensor was required to fit in the
+8 MB VTCM. Four chained FP16 ReLUs were fused back to a single read and write.
+A static input was constant-folded and the graph deleted its tensors.
+DMA-BUF registration is rejected on HTP v81.
+
+rpcmem + QnnMem shared buffers (the llama.cpp weight path), FP16 ReLU,
+handles restamped at execute, output checksum matched:
+
+  32 MiB    26.6 GB/s
+  128 MiB   28.3 GB/s
+
+That is the HVX load/store band. It is not the DMA-engine band.
