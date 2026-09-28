@@ -1,4 +1,4 @@
-param([ValidateSet('flush-only', 'activation-source')][string]$Variant = 'flush-only')
+param([ValidateSet('flush-only', 'activation-source', 'source-off', 'actsrc-64k', 'actsrc-4k', 'actsrc-small', 'actsrc-small-flush')][string]$Variant = 'flush-only')
 
 $ErrorActionPreference = 'Stop'
 if (Get-Process llama-cli,llama-bench,test-backend-ops,ninja -ErrorAction SilentlyContinue) { throw 'Build or inference already active' }
@@ -21,6 +21,11 @@ $baselineHashes = @{
 $candidateHashes = @{
     'flush-only' = '3040B10D48740833359B00BD762C234420787C6D5CF7F0BA379B04AD091BF34F'
     'activation-source' = '64C095F085592FA6D30EE7E9A562549FEAF1ECD6997BD09AE065DC285C617993'
+    'source-off' = 'CE61129577F7D63E3186ED1C439DF35F970954DE6BD23416FF1FD081C8A50CDA'
+    'actsrc-64k' = '11CA04647743CE92068943B6B5D79D413C0CC2E3C95967FA76F2AA3386E9B21F'
+    'actsrc-4k' = '9A05E3EA98E9B8D8C93C4D9B202F532BDAE8AA060D79E6A1FCB16802EE8E1064'
+    'actsrc-small' = '143477CBE7650A9857AE37A2A6BDA2B3498209FC42B08C253ADF2E05D8CFABDC'
+    'actsrc-small-flush' = '45B009B812E800B0ACA150F397720F3E61BE82E6A24036313198F385EE7A5458'
 }
 $candidateHash = $candidateHashes[$Variant]
 foreach ($required in @($inf2cat, $signtool, $certificate)) {

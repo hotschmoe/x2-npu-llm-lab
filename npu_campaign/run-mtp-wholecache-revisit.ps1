@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Prefix,
     [ValidateRange(1, 128)][int]$Tokens = 64,
     [string]$Prompt = 'Hello',
-    [ValidateSet('archive', 'keep-tracker', 'reset-control', 'flush-only', 'activation-source')][string]$Variant = 'archive'
+    [ValidateSet('archive', 'keep-tracker', 'reset-control', 'flush-only', 'activation-source', 'source-off', 'actsrc-64k', 'actsrc-4k', 'actsrc-small', 'actsrc-small-flush')][string]$Variant = 'archive'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,6 +28,11 @@ $candidateHashes = @{
     'reset-control' = @{ 'libggml-htp-v81.so' = '8CE16D35BB1A8CE691BFBD6748DB809BB61E2BE102116511D22366CD35D6DD04'; 'libggml-htp.cat' = '7ECFCE6A864D4228BF11776777F86620A454BA726D985A7B4A9E49E7B366B093' }
     'flush-only' = @{ 'libggml-htp-v81.so' = '3040B10D48740833359B00BD762C234420787C6D5CF7F0BA379B04AD091BF34F'; 'libggml-htp.cat' = '3C916C976072B5F1F39BB0E27918673282C936B1371E922F75EA5E46828CA74B' }
     'activation-source' = @{ 'libggml-htp-v81.so' = '64C095F085592FA6D30EE7E9A562549FEAF1ECD6997BD09AE065DC285C617993'; 'libggml-htp.cat' = '4404E0B0BEEBEFFB956164FE0151017C9A01F6FC0F57ABEA6DCE279A5E3949B3' }
+    'source-off' = @{ 'libggml-htp-v81.so' = 'CE61129577F7D63E3186ED1C439DF35F970954DE6BD23416FF1FD081C8A50CDA'; 'libggml-htp.cat' = 'BC4B72DF39B5E275AF2366D97172E38BB74D68CC535EDC1D9E0EF242898D5434' }
+    'actsrc-64k' = @{ 'libggml-htp-v81.so' = '11CA04647743CE92068943B6B5D79D413C0CC2E3C95967FA76F2AA3386E9B21F'; 'libggml-htp.cat' = 'C6ACF1F139C81C3BF0B9241720004CD6EB66EDA528A1A0107B9142257544A831' }
+    'actsrc-4k' = @{ 'libggml-htp-v81.so' = '9A05E3EA98E9B8D8C93C4D9B202F532BDAE8AA060D79E6A1FCB16802EE8E1064'; 'libggml-htp.cat' = '9CD2940201621536303A51CFE8BBA17E343437C9F1045BD7E708F53C422FD997' }
+    'actsrc-small' = @{ 'libggml-htp-v81.so' = '143477CBE7650A9857AE37A2A6BDA2B3498209FC42B08C253ADF2E05D8CFABDC'; 'libggml-htp.cat' = 'F115149EC4F1716733AA7A7957959D45A19C2DC0D357C5A1B8839FCDCA9263DB' }
+    'actsrc-small-flush' = @{ 'libggml-htp-v81.so' = '45B009B812E800B0ACA150F397720F3E61BE82E6A24036313198F385EE7A5458'; 'libggml-htp.cat' = '1DD75D33FCC67BED9B3B2A12E933F75E04311754756F62512308FE8722CA8648' }
 }
 $candidateHash = $candidateHashes[$Variant]
 if ((Get-FileHash -LiteralPath $hostDll -Algorithm SHA256).Hash -ne 'C9E4D8ADE6884DA62DF7A597DCEAC6582AC036236C06134231A405BAF8E6399E') { throw 'Unexpected host DLL' }
