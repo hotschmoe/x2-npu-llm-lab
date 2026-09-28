@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Prefix,
     [ValidateRange(1, 128)][int]$Tokens = 64,
     [string]$Prompt = 'Hello',
-    [ValidateSet('archive', 'keep-tracker', 'reset-control', 'flush-only', 'activation-source', 'source-off', 'actsrc-64k', 'actsrc-4k', 'actsrc-small', 'actsrc-small-flush')][string]$Variant = 'archive'
+    [switch]$NoLogitsTrace,
+    [ValidateSet('archive', 'keep-tracker', 'reset-control', 'flush-only', 'activation-source', 'source-off', 'actsrc-64k', 'actsrc-4k', 'actsrc-small', 'actsrc-small-flush', 'actsrc-512', 'actsrc-513to4095', 'actsrc-small-inline', 'actsrc-small-inline-sync')][string]$Variant = 'archive'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,6 +34,10 @@ $candidateHashes = @{
     'actsrc-4k' = @{ 'libggml-htp-v81.so' = '9A05E3EA98E9B8D8C93C4D9B202F532BDAE8AA060D79E6A1FCB16802EE8E1064'; 'libggml-htp.cat' = '9CD2940201621536303A51CFE8BBA17E343437C9F1045BD7E708F53C422FD997' }
     'actsrc-small' = @{ 'libggml-htp-v81.so' = '143477CBE7650A9857AE37A2A6BDA2B3498209FC42B08C253ADF2E05D8CFABDC'; 'libggml-htp.cat' = 'F115149EC4F1716733AA7A7957959D45A19C2DC0D357C5A1B8839FCDCA9263DB' }
     'actsrc-small-flush' = @{ 'libggml-htp-v81.so' = '45B009B812E800B0ACA150F397720F3E61BE82E6A24036313198F385EE7A5458'; 'libggml-htp.cat' = '1DD75D33FCC67BED9B3B2A12E933F75E04311754756F62512308FE8722CA8648' }
+    'actsrc-512' = @{ 'libggml-htp-v81.so' = '1C9FB5DAFD40B8DF5F1C935C1D2B9937694FA448DAAED638B3B7CF79D35E5D69'; 'libggml-htp.cat' = '91A301E07F80935F778D78DA2ADA24FF763860A8B98E96C40A05CFAA71887798' }
+    'actsrc-513to4095' = @{ 'libggml-htp-v81.so' = '4CDFE90088815E959B5354EFAC8D3FF9BEA1B913FC6ED905E94E5EC4C5A2E60A'; 'libggml-htp.cat' = 'D0608A3417A2710A06F57C0B020ED1686B379AC78B845FD8BCF960A6139B95FC' }
+    'actsrc-small-inline' = @{ 'libggml-htp-v81.so' = '13A92F2145E5A56CA277B3B2CACBFEFAB42D87BF77932A70CFB56140C1A1AAE6'; 'libggml-htp.cat' = '2F835AA594EF5690DF06F76647AA0EE30C3AE2B02EF705DB17101B0040FD7287' }
+    'actsrc-small-inline-sync' = @{ 'libggml-htp-v81.so' = '77BAE4219AD65135163C2D72DBA97FB0D539C90479993F97EC480244966DF9DC'; 'libggml-htp.cat' = 'E6750D7F17FF02F4B2C79B28CAC1C261702F23A55C9F10D1DBF524F36DD2B5B9' }
 }
 $candidateHash = $candidateHashes[$Variant]
 if ((Get-FileHash -LiteralPath $hostDll -Algorithm SHA256).Hash -ne 'C9E4D8ADE6884DA62DF7A597DCEAC6582AC036236C06134231A405BAF8E6399E') { throw 'Unexpected host DLL' }
@@ -62,8 +67,8 @@ try {
             GdnSelect = 1
             FaSelect = 1
             RouterHvx = $true
-            LogitsTrace = $true
         }
+        if (-not $NoLogitsTrace) { $stageArgs.LogitsTrace = $true }
         if ($arm.StartsWith('real')) { $stageArgs.Mtp = $true }
         & (Join-Path $PSScriptRoot 'run-mtp-stage.ps1') @stageArgs
         if (-not $?) { throw "Stage failed: $arm" }
