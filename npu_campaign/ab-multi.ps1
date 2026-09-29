@@ -5,7 +5,7 @@ param(
     [int]$Rounds = 3, [string]$PP = '1024', [int]$UB = 1024, [int]$Reps = 3, [string]$Tag = 'abm', [string]$Model = ''
 )
 $ErrorActionPreference = 'Stop'
-$Specs = @($Specs | ForEach-Object { $_ })
+$Specs = @($Specs | ForEach-Object { $_ -split ',(?=[A-Za-z0-9_]+\|)' } | Where-Object { $_ })
 $here = $PSScriptRoot
 $rows = @()
 for ($r = 1; $r -le $Rounds; $r++) {
@@ -19,7 +19,7 @@ for ($r = 1; $r -le $Rounds; $r++) {
             $saved[$k] = [Environment]::GetEnvironmentVariable($k)
             [Environment]::SetEnvironmentVariable($k, $v)
         }
-        $argv = @('-NoProfile', '-File', "$here\run-prefill-bench.ps1", '-Label', $label, '-PP', $PP, '-UB', $UB, '-Reps', $Reps)
+        $argv = @('-NoProfile', '-File', "$here\run-prefill2-bench.ps1", '-Label', $label, '-PP', $PP, '-UB', $UB, '-Reps', $Reps)
         if ($lib -and $lib -ne '-') { $argv += @('-LibDir', $lib) }
         if ($bin -and $bin -ne '-') { $argv += @('-BinDir', $bin) }
         if ($Model) { $argv += @('-Model', $Model) }

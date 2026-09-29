@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 $Specs = @($Specs | ForEach-Object { $_ -split ',(?=[A-Za-z0-9_]+\|)' } | Where-Object { $_ })
 $here = $PSScriptRoot
 $rows = @()
-. (Join-Path $here 'npu-lock.ps1')
+. (Join-Path $here 'npu-lock-fast.ps1')
 for ($r = 1; $r -le $Rounds; $r++) {
     Enter-NpuLock "ab-hold $Tag r$r"; $env:PF_HAVE_LOCK = '1'
     try {

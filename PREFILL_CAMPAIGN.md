@@ -324,3 +324,22 @@ Cumulative (installed default, ub1024, pp1024): 454 (session start, ub1024) -> 7
 - 2026-09-29: expert-combine fusion +5% (747 t/s pp1024 ub1024, PPL identical, edge sweep identical); router refine negative.
 - 2026-09-29: installed conv-window + expert-combine fusions into pkg-wos; pp1024 ub1024 749 t/s, PPL identical, decode unchanged.
 - 2026-09-29: column-chunked pipeline (Gemma 4 +21.5%); merged with the decode agent's MTP branch (ee4381b), validated (PPL 12.1307, MTP logits bit-identical, edge sweep), installed via install-merged.ps1; MTP +8% on the installed path.
+
+## Prefill2 session (agent `prefill2`, 2026-09-29; branch `prefill2` of llama.cpp-hexagon, log `npu_campaign/PREFILL2_LOG.md`)
+
+Headline (interleaved A/B, Qwen3.6-35B-A3B Q4_0, pp1024/ub1024, llama-bench 3 reps, 2 rounds): base 757/772 t/s; bit-exact set 762/770 (+0.2%);
++ DMA-staged expert gather 778/766 (+0.9% vs base); **router on HMX with exact top-16 refine (`GGML_HEXAGON_ROUTER_HVX=0`): 847/849 (+11%), PPL 12.1611
+(HVX router 12.1307, CPU 12.2015), 0.74 vs 0.83 s/pass**. Everything else is PPL 12.1307 / 13.3331 (16 chunks), bit-identical.
+
+1. Router puzzle solved. The old refine recomputed candidate logits with the 1x1 dot kernel whose lane-reduction tree differs from the 2x2 kernel the HVX router
+   uses, so the "exact" logits differed in the last bits and PPL moved by 0.04 (the model is that sensitive; NPU-vs-CPU spread is 0.07). With the 2x1 kernel
+   (same `hvx_vec_reduce_sum_f32x2` tree) recomputing ALL logits reproduces 12.1307 exactly (self-test `PF_ROUTER_K=256`). Production K=16: exact selection and
+   exact selected logits; only the softmax denominator sees the fp16-accurate HMX values of the 240 non-candidates (cancels in the normalised top-8 weights up to
+   ulp noise, hence 12.1611 rather than 12.1307). Generalised to any F32 router with N in {128,256} (Gemma 4: 2816x128). Lesson: my first generalisation (N%32)
+   also matched ssm_alpha/ssm_beta and gave PPL 12.1645 - the PPL gate caught it on the first build.
+2. Expert pipeline is uniformly loaded: marginal-cost probes (run one stage twice, bit-exact) cost +110 ms (dequant), +82 (HMX), +56 (weight DMA), +53 (gather),
+   +48 (scatter) per pass of a 457 ms expert time; an extra empty fork/join per item is free; 6/7/8 HVX threads = 652/691/757 t/s. No single bottleneck left.
+3. Bit-exact fusions/tuning (all PPL 12.1307): multi-row `MOE+TOPK` (SOFT_MAX+ARGSORT+GET_ROWS+SUM_ROWS+CLAMP+DIV in one op for T>=32, top-8 by 8-round max-select
+   instead of a 256-element bitonic sort; also Gemma's 128 experts), round-robin row pairs for the expert gather/scatter (contiguous split left half the threads idle),
+   DMA-staged activation gather (DMA engine fetches the F32 rows into VTCM, HVX converts from there), Gemma REPEAT plane copy and expert-scale fold into ADD+NW.
+4. Opt-in: vector softplus `PF_SOFTPLUS_VEC` (-16 ms/pass, PPL 12.1408), `GGML_HEXAGON_ID_HVX_MAX_T` / `GGML_HEXAGON_HMX_MIN_ROWS` (small-M HVX thresholds).
