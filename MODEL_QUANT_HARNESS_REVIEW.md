@@ -52,3 +52,12 @@ HVX top-k recheck, CONCAT+SSM_CONV+SILU fusion, prefill ADD_N, Q4 head); 1 model
 QAT, GPT-OSS MXFP4, Qwen IQ4_NL, Qwen MXFP4_MOE); 2 Zig host replaying one frozen layer to test expert/GDN co-running on split
 thread pools (go/no-go); 3 two-ubatch pipeline if phase 2 shows >=25% overlap; 4 optional W4A8 HMX. ZML/vLLM/SGLang backends:
 compiler/porting projects with no evidence of payoff.
+
+## Measured follow-up (2026-09-29, installed build: pipelined experts + conv/combine fusions, ub1024)
+
+- Qwen3.6-35B-A3B Q4_0: pp1024 749 t/s (pp512 665, pp4096 729).
+- Gemma 4 26B-A4B QAT Q4_0 (local GGUF, no new ops needed): pp128 299, pp512 591, pp1024 714 t/s. The review projected ~890, so
+  Gemma's prefill is ~5% below Qwen's, not 20% above; Qwen stays primary. (Gemma decode not yet measured.)
+- ub scaling on Qwen pp4096: ub1024 729, ub2048 713, ub4096 716 t/s - flat, i.e. above ub1024 the experts are bound by per-row
+  work (activation gather/scatter, HMX, F32 activation round trips), not by weight streaming. This contradicts the review's
+  weight-streaming model for ub >= 1024.
