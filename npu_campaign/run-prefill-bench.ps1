@@ -6,7 +6,8 @@ param(
     [int]$Reps = 2,
     [string]$Extra = '',
     [ValidateSet('HTP0', 'none')][string]$Device = 'HTP0',
-    [string]$LibDir = ''
+    [string]$LibDir = '',
+    [string]$BinDir = ''
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
@@ -20,7 +21,8 @@ $env:GGML_HEXAGON_FA_SELECT = '2'
 $env:GGML_HEXAGON_GDN_SELECT = '2'
 $lib = if ($LibDir) { (Resolve-Path (Join-Path $repoRoot $LibDir)).Path } else { "$repoRoot\llama.cpp-hexagon\pkg-wos\lib" }
 $env:ADSP_LIBRARY_PATH = "$lib;"
-$exe = "$repoRoot\llama.cpp-hexagon\pkg-wos\bin\llama-bench.exe"
+$binDirResolved = if ($BinDir) { (Resolve-Path (Join-Path $repoRoot $BinDir)).Path } else { "$repoRoot\llama.cpp-hexagon\pkg-wos\bin" }
+$exe = "$binDirResolved\llama-bench.exe"
 $out = "$PSScriptRoot\prefill-$Label"
 $ngl = if ($Device -eq 'none') { 0 } else { 99 }
 $a = "-m `"$repoRoot\$Model`" -p $PP -n 0 -ub $UB -b 2048 -r $Reps -ngl $ngl --device $Device -o md $Extra"

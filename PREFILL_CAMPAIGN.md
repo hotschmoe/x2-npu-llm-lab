@@ -207,6 +207,20 @@ Ranked next steps:
 - Rollback: copy the two files from the backup dir back into pkg-wos/lib.
 - `npu_campaign/npu-lock.ps1` is a cross-agent NPU mutex now used by run-prefill-bench/ppl/decode scripts.
 
+## Experiment 9: prefill conv-window fusion (CONCAT + CPY + SSM_CONV + SILU -> one token-major op)
+
+`patch_convfuse.py`: host matcher `try_fuse_ssm_conv_prefill` (T >= 4, d_inner % 32 == 0, T <= 8192, single device) + SILU
+absorber `try_fuse_ssm_conv_silu`, DSP kernel `ssm_conv_prefill_tm_thread` (fused_window == 2): rows DMA'd straight from the
+matmul output (token-major, 128-channel x 128-token tiles, double buffered), four taps as row-shifted vectors (same qf32
+accumulation order as the generic kernel), SILU via the same sigmoid+mul helpers as the SILU op, packed-state update written
+by the same op. No transposes, no CONCAT round trip. Enabled by the existing SSM_CONV_WIN fusion bit (OPFUSION=1 = all).
+- Ops per pass 2024 -> 1934; the three ops (~243 ms/pass at ub1024) become one ~103 ms/pass op.
+- Interleaved A/B pp1024 ub1024 (3 rounds x 3 reps): 649.5 -> 714.8 t/s (+10%). PPL (ctx512) 12.1307 identical.
+- Needs a host DLL rebuild: `build-prefill-host.cmd` -> `llama.cpp-hexagon/build-prefill-host/bin/ggml-hexagon.dll`; experimental
+  package `llama.cpp-hexagon/pkg-prefill/bin` (= pkg-wos/bin + new dll); scripts take `-BinDir`; ab variants `name:pkg-prefill`.
+- Ideal for the fused op is ~1.3 ms/layer vs 3.45 measured: DMA rows are only 512 B (128-channel tiles); a 256-channel tile is
+  the next tuning step.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
@@ -214,3 +228,4 @@ Ranked next steps:
 - 2026-09-28: pipe2/3/4/5: fused dispatch, l2fetch (no gain, reverted), ddr_spad 2 MB (+13%). pp512 ~385 -> ~551.
 - 2026-09-28: pipe6 (fused dispatch, neutral), pipe7 (row-chunked hot experts): pp2048 ub1024 614 t/s, PPL identical.
 - 2026-09-28: pipe8 Q4_0 LUT dequant no gain (reverted); pipe9 exact-range gather +4% (646 t/s pp1024 ub1024).
+- 2026-09-29: prefill conv-window fusion (SSM_CONV+PF+SILU): +10% (715 t/s pp1024 ub1024), PPL identical.

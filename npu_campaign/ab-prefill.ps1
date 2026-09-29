@@ -14,9 +14,16 @@ $here = $PSScriptRoot
 $rows = @()
 for ($r = 1; $r -le $Rounds; $r++) {
     foreach ($v in $Variants) {
-        $label = "$Tag-$v-r$r"
-        $dir = if ($v -eq 'installed') { '' } else { "npu_campaign\prefill-cand-$v" }
-        & powershell -NoProfile -File "$here\run-prefill-bench.ps1" -Label $label -PP $PP -UB $UB -Reps $Reps -LibDir $dir | Out-Null
+        # variant syntax: name  or  name:pkgdir  (pkgdir = folder under llama.cpp-hexagon holding bin/, e.g. pkg-prefill)
+        $vname = ($v -split ':')[0]
+        $pkg = if ($v -like '*:*') { ($v -split ':')[1] } else { '' }
+        $label = "$Tag-$vname-r$r"
+        $dir = if ($vname -eq 'installed') { '' } else { "npu_campaign\prefill-cand-$vname" }
+        $bin = if ($pkg) { "llama.cpp-hexagon\$pkg\bin" } else { '' }
+        $argv = @('-NoProfile', '-File', "$here\run-prefill-bench.ps1", '-Label', $label, '-PP', $PP, '-UB', $UB, '-Reps', $Reps)
+        if ($dir) { $argv += @('-LibDir', $dir) }
+        if ($bin) { $argv += @('-BinDir', $bin) }
+        & powershell @argv | Out-Null
         $line = Select-String -Path "$here\prefill-$label.log" -Pattern 'pp\d+' | ForEach-Object { $_.Line }
         foreach ($l in $line) {
             if ($l -match '(pp\d+)\s*\|\s*([\d.]+)') { $rows += [pscustomobject]@{ Variant = $v; Round = $r; Test = $Matches[1]; TPS = [double]$Matches[2] } }
