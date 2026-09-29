@@ -2,7 +2,6 @@
 # Bench with:  run-prefill-bench.ps1 -Label x -LibDir npu_campaign\prefill-cand-<Name>
 param([Parameter(Mandatory = $true)][string]$Name, [string]$Build = 'build-prefill-htp')
 $ErrorActionPreference = 'Stop'
-if (Get-Process llama-cli,llama-bench,llama-completion,ninja -ErrorAction SilentlyContinue) { throw 'Build or inference active' }
 $repo = Split-Path $PSScriptRoot -Parent
 $sdkBin = 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x86'
 $cert = 'C:\Users\hotschmoe\Certs\ggml-htp-v1.pfx'

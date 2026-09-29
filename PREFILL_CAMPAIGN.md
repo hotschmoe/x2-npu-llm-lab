@@ -221,6 +221,22 @@ by the same op. No transposes, no CONCAT round trip. Enabled by the existing SSM
 - Ideal for the fused op is ~1.3 ms/layer vs 3.45 measured: DMA rows are only 512 B (128-channel tiles); a 256-channel tile is
   the next tuning step.
 
+## Experiment 10: prefill expert combine (MUL + 7 ADD -> one multi-threaded ADD_NW), and an allocator-aliasing lesson
+
+Source of truth is the committed code in llama.cpp-hexagon (binary-ops.c `add_nw_wload` + `add_nw_prefill_worker`, ggml-hexagon.cpp
+`try_fuse_moe_wsum_prefill`); `patch_moewsum.py` is only the first draft. ops per pass 2024 -> 1654 with the conv fusion.
+Same per-row math as the decode ADD_NW kernel (hvx_mul_scalar_f32_aa then hvx_add_f32_aaa left fold).
+
+**Lesson (cost ~2 hours):** the first version gave PPL 82 instead of 12.13 with every kernel variant (pipelined, serial, validation off).
+The PPL gate caught it; skipping the kernel gave PPL 8.8M (so the op ran); the cause was memory aliasing: the ggml allocator places
+the fused output (ffn_moe_out, 4 MB) at exactly the address of the 16 KB `weights` tensor (dst&down = no, dst&weights = yes), because in
+the original graph the weights were dead before the ADD chain wrote. A fusion that moves work EARLIER in the batch (fused op sits at the
+MUL position) can therefore overwrite an input it has not finished reading. Rules going forward: (1) always run the PPL gate on the
+first build of any fusion; (2) check `ggml_hexagon_tensors_overlap(dst, every input)` in the matcher; (3) if an alias is allowed, the
+kernel must stage that input (here: all weights DMA'd to VTCM in a first work_queue phase, before any output row is written).
+Also: unaligned DMA source addresses were never the problem (weights 32 B aligned windows are fine); the 82 PPL was deterministic in
+serial mode and racy in pipelined mode, which is the signature of an alias.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
