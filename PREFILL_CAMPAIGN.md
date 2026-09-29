@@ -129,7 +129,27 @@ Off by default in CMake; single-device (mdev.count == 1) only.
 | PPL (4x512) | 12.1307 | 12.1307 (bit-identical output stat) |
 | perplexity s/pass | 1.44 | 1.08 |
 
+## Experiments 2-4 (same `GGML_HEXAGON_MMID_PIPE` option), interleaved A/B, pp512, 3 rounds x 3 reps
+
+| variant | what | pp512 (mean) | vs base |
+| --- | --- | ---: | ---: |
+| base | clean rebuild, option OFF | 348-385 (machine drift between sessions) | - |
+| pipe | cross-expert pipeline (Exp 1) | 436 | +25% |
+| pipe2 | weight DMA sliced over per-thread queues | 450 | +29% |
+| pipe3 | one worker dispatch per item (scatter(i-2)+gather+DMA+dequant fused) | 453 / 488 | +28% |
+| pipe4 | + l2fetch of gather rows | 489 (no change vs pipe3) - reverted | 0 |
+| pipe5 | ddr_spad 512 KB -> 2 MB (removes per-op memalign of the ~1 MB row-map table) | 551 | +43% |
+
+Findings:
+- Same-skel run-to-run and session-to-session drift is 5-10%; only interleaved multi-round A/B is trustworthy.
+- DMA trace events span push->completion, not wait time; weight streaming was not the limiter (~24 GB/s used).
+- Serial INIT on thread 0 (expert-ID scan/mapping table) was 20-44% of expert-op wall; the mapping table is
+  n_experts * max_rows * 8 B (up to ~1 MB) but ddr_spad was 512 KB, so every op did memalign+free. 2 MB removed it.
+- Gather (A_PREP) is 13 us/thread for ~2 rows but l2fetch did not help end to end.
+- PPL (4x512 tokens) stays 12.1307 +/- 1.11278 on pipe, pipe2, pipe3.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
 - 2026-09-28: Experiment 1 (pipelined MoE expert kernel): pp512 385 -> 485 (+26%), pp128 +53%, PPL identical.
+- 2026-09-28: pipe2/3/4/5: fused dispatch, l2fetch (no gain, reverted), ddr_spad 2 MB (+13%). pp512 ~385 -> ~551.

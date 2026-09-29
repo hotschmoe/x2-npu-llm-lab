@@ -40,6 +40,29 @@ for s,c,n in ops:
     i=bisect.bisect_left(starts,s)
     while i<len(ev) and ev[i][0]<e:
         a=agg[n][ev[i][2]]; a[0]+=min(ev[i][1],e)-ev[i][0]; a[1]+=1; i+=1
+# COVERAGE: fraction of each op window where at least one HVX/DMA-wait stage event is active
+import itertools
+cov=collections.Counter()
+hv=[e for e in ev if e[2].startswith('HVX_')]
+hv.sort()
+hst=[e[0] for e in hv]
+for s0,c,n in ops:
+    if n not in want: continue
+    e=s0+c; i=bisect.bisect_left(hst,s0-2000000)  # events can start slightly before op start; clip below
+    segs=[]
+    while i<len(hv) and hv[i][0]<e:
+        a,b=max(hv[i][0],s0),min(hv[i][1],e)
+        if b>a: segs.append((a,b))
+        i+=1
+    segs.sort(); tot=0; cur=None
+    for a,b in segs:
+        if cur is None: cur=[a,b]
+        elif a<=cur[1]: cur[1]=max(cur[1],b)
+        else: tot+=cur[1]-cur[0]; cur=[a,b]
+    if cur: tot+=cur[1]-cur[0]
+    cov[n]+=tot
+for n in sorted(want):
+    if cnt[n]: print(f'COVERAGE {n}: HVX-active {100*cov[n]/wall[n]:.1f}% of op wall (idle {100-100*cov[n]/wall[n]:.1f}%)')
 for n in sorted(want):
     if not cnt[n]: continue
     w=wall[n]; print(f'{n}: {cnt[n]} ops, wall {w/MHZ/cnt[n]:.0f} us/op')
