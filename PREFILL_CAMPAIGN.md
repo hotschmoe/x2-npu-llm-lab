@@ -41,6 +41,44 @@ graph replay + opbatch already hide FastRPC cost. Op-duration histogram: 712 ops
 16 tokens) where per-expert setup/dequant cannot amortize, and host<->DSP batch boundaries. Next: per-op
 latency table at pp16/pp64 and per-stage (DMA wait / dequant / HMX / scatter) traces inside the expert loop.
 
+## ub sweep (llama-bench, 1 rep)
+
+| ub | pp512 | pp1024 | pp2048 |
+| --- | ---: | ---: | ---: |
+| 512 | 381 | - | - |
+| 1024 | - | 460 | 456 |
+| 2048 | - | 436 | 472 |
+
+Bigger ub recovers ~24% then flattens near ~470: per-expert weight-dequant amortization is not the whole story.
+
+## Stage trace inside expert ops (GGML_HEXAGON_PROFILE=3, `prefill_stage_sum.py`, measured batch)
+
+Trace timestamps are 32-bit and wrap; script unwraps per thread and aligns to op clock. Per-op averages,
+"sum over threads" against 8 HVX threads (800% = fully saturated):
+
+| op (wall/op) | stage | thread-time/op | notes |
+| --- | --- | ---: | --- |
+| MUL_MAT_ID down (8.3 ms) | HVX_W_DEQUANT | 6.9 ms | |
+| | HVX_A_PREP | 4.7 ms | activation gather+F32->F16 |
+| | HVX_O_PROC | 3.8 ms | scatter |
+| | INIT (thread 0, serial) | 3.7 ms = 44% of wall | per-expert setup |
+| | DMA wait | 1.0 ms | |
+| | **HMX_COMP** | **0.9 ms = 11% of wall** | |
+| MUL_MAT_ID_NX gate+up (12.7 ms) | HVX_A_PREP | 25.6 ms | 2400 events/op for 305 chunks: ~8x redundant |
+| | HVX_W_DEQUANT | 13.6 ms | |
+| | INIT | 2.2 ms (17%) | |
+| | DMA wait | 2.1 ms (17%) | |
+| | HVX_O_PROC | 2.4 ms | |
+| | **HMX_COMP** | **1.05 ms = 8% of wall** | |
+
+Reading: HMX is idle ~90% of the expert ops. Phases (INIT, A_PREP, W_DEQUANT, HMX, O_PROC, DMA wait) run
+back to back with thread barriers, so wall ~= sum of phase walls; HVX threads are only ~25-40% busy.
+The win is removing/overlapping phases, not a faster multiplier:
+- hoist activation F32->F16 conversion out of the per-expert loop (convert the 512x2048 rows once, 2 MB;
+  experts then only gather F16 rows). Targets A_PREP (biggest NX phase).
+- kill serial per-expert INIT (thread 0): precompute chunk plans/row maps once per op.
+- pipeline dequant(i+1) || HMX(i) || scatter(i-1), prefetch next expert's weight DMA across expert boundary.
+
 ## Why experts are slow (matmul-ops.c `hmx_mm_id_2d_f32`)
 
 - ~16 rows/expert at ub512 (512 x 8 / 256), padded to 32; each weight tile is dequantized (Q4_0 -> fp16, HVX)
