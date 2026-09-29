@@ -180,6 +180,23 @@ alone was +/-0 vs pipe2 in the interleaved A/B; `patch_mmid_fuse.py` re-applies 
   redundant conversion of F32 rows read from DDR). Exact-range worker converts each row once and zero-fills padding.
   pp1024/ub1024 pipe7 ~623 -> pipe9 646.5 (+4%); PPL 12.1307 identical (ctx512).
 
+## Status and next targets (pipe9, ub1024, per 1024-token pass ~1.56 s = ~650 t/s; base at ub1024 = 454)
+
+Per-op split now (ms per pass): MUL_MAT ~360 (router ffn_gate_inp ~175 + dense projections), experts ~435
+(NX 270 + down 164), linear-attention group ~370 (GDN+CPY 115, SSM_CONV 105, CONCAT 93, SILU 45, SOFTPLUS 16),
+ADD+MUL ~150, everything else ~250. Experts are no longer the majority.
+
+Ranked next steps:
+1. Router: `PF_ROUTER=0` (HMX) is +10% at +0.26% PPL (opt-in today). A production-safe variant: HMX top-(8+m)
+   candidates then exact HVX recheck, or hi/lo split HMX.
+2. Linear-attention chain: fuse CONCAT(transpose)+SSM_CONV+SILU into one prefill op (~240 ms -> maybe 100);
+   chunked WY GDN on HMX if GDN+CPY stays > 100 ms.
+3. Fused MoE weighted sum (MUL + 7 ADD -> one strided ADD_N) ~40-60 ms; existing ADD+N fusion is decode-only
+   (`is_row` requires ne[1]==1).
+4. Layer-major multi-chunk prefill (>1 microbatch per weight pass) once non-expert ops shrink.
+5. Harness question: prefill data says the value is in the DSP kernel library, host gaps are ~0.5 ms/1400 ms.
+   Zig host over the existing skel is the natural first step; ZML backend is a compiler project.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
