@@ -14,7 +14,16 @@ identical dimensions and layer pattern, only +1 MTP (nextn) layer; every kernel 
 | Nano tg64 (tok/s) | 34.5 | 18 (12-token run) | 24.0 | 23.3 | 31.7 | ~33 |
 | 3.5-Lightning pp512 / pp1024 / tg64 | 172 / - / 32.8 | | | | | 816 / 970 / 27.5 |
 
-(final-column Nano numbers: see the cross-model table at the end for the same-session measurement.)
+Same-session cross-model (one package `pkg-mamba-dskip`, llama-bench ub1024, round 1 of `mamba-xmodel.ps1`; Nemotron with router-HMX, Qwen/Gemma with the campaign default):
+
+| model | pp512 | pp1024 | tg64 |
+| --- | ---: | ---: | ---: |
+| Nemotron-3-Nano-30B-A3B Q4_0 (this work) | 810 | 954 | 31.7 |
+| Qwen3.6-35B-A3B Q4_0 | 682 | 757 | 28.3 |
+| Gemma-4-26B-A4B QAT Q4_0 | 796 | 885 | 29.0 |
+| Nemotron-3.5-Lightning Q4_0 (ggml-org, Q8_0-heavy) | 816 | 970 | 27.5 |
+
+(Only one round: the second was cut for time; Gemma/Qwen numbers are lower than the overnight summary's because this session is under heavy NPU/RAM contention from the other agents.)
 
 The ONLY unsupported ops were `SSM_SCAN` and `MUL_MAT` with Q5_1 weights (shared experts of 12 of 23 MoE layers in the bartowski GGUF).
 Everything else (ReLU^2 as RELU+SQR, sigmoid router + bias, ADD_ID-free routing, grouped RMS norm, SSM_CONV, MUL_MAT_ID q4_0/q4_1) already ran on HTP0.

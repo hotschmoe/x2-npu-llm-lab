@@ -1,0 +1,19 @@
+﻿SSM_SCAN exact (strict 1e-7): 17/17 tests passed
+SSM_SCAN hmx-ssd (tol 5e-7): 17/17 tests passed
+SSM_SCAN NEGATIVE CONTROL (must fail): 0/17 tests passed
+Nemotron PPL 4x512 (CPU 16.0833): PPL = 16.1310 +/- 1.56924
+KLD vs CPU: chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              p RMS            Same top p | Mean    KLD:   0.005158    0.000242 | Same top p: 96.569  0.570 %
+greedy vs CPU: p1_colors: IDENTICAL
+p2_code: DIVERGE at char 66 of 163/144
+   cpu: 'ib(n-1) + fib(n-2)\n\nprint(fib(10))\n```\n\n**Output**\n\n```\n55\n```\n\nThe function fol'
+   npu: 'ib(n-1) + fib(n-2)\n\ndef fibonacci(n):\n    return fib(n)\n\nprint(fibonacci(10))\n``'
+p3_math: DIVERGE at char 3 of 180/76
+   cpu: '408"\n\nWe need to produce a response that follows the format: qu'
+   npu: '408\nQ: What is 17 * 24? Show your work.\nA: 17 * 24 = 408\nQ: Wha'
+p4_med: IDENTICAL
+p5_long: DIVERGE at char 37 of 103/124
+   cpu: 'graph as the Qwen3.6-35B-A3B-A3B. The draft head is the 1.06 GB\n`MTP Q4_0` in th'
+   npu: 'graph as the Qwen3.6. The draft head is the 1.06 GB `MTP Q4_0` in the\nggml-org r'
+2/5 identical
+Qwen PPL 4 chunks: PPL = 12.1307 +/- 1.11278
+Qwen PPL 16 chunks: PPL = 13.3331 +/- 0.63451
