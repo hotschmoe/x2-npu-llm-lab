@@ -1,5 +1,42 @@
 # Prefill campaign (Hexagon HTP0, Qwen3.6-35B-A3B Q4_0)
 
+## SUMMARY (read this first; details and negative results below)
+
+Session 2026-09-28/29, one X2 Elite machine. Numbers are llama-bench t/s, production path, installed `pkg-wos` unless noted.
+
+| | session start | now |
+| --- | ---: | ---: |
+| pp512, ub512 | 381 | ~665 |
+| pp1024, ub1024 | 454 | ~750 (764 with OPPOLL=1) |
+| pp4096 (ub1024) | ~470 | 729 |
+| pp8 / 16 / 32 / 64 / 128 / 256 (ub512) | -, 71, -, 158, 244, - | 83 / 142 / 208 / 322 / 420 / 546 |
+| perplexity (16 x 512 tokens) | 13.3331 | 13.3331 (identical), 1.52 -> 0.86 s per pass |
+
+What moved the numbers, in order of value (all bit-identical output unless noted; details in the numbered experiments below):
+1. Cross-expert software-pipelined HMX MoE kernel (`hmx_mm_id_pipelined`, chunked hot experts): overlap weight DMA, dequant, HMX and
+   scatter across (expert, weight) items; activation gather shared by gate+up (+25-30%).
+2. 2 MB DDR scratchpad: the row-map table is up to ~1 MB, the 512 KB scratchpad forced a `memalign`/`free` on the DSP for every expert op (+13%).
+3. Exact-range activation gather: the stock gathered worker padded each thread to 32 rows and converted ~4.5x redundant rows (+4%).
+4. Prefill conv-window fusion (CONCAT + CPY + SSM_CONV + SILU -> one token-major op, no transposes) (+10%).
+5. Prefill expert-combine fusion (MUL + 7 ADDs -> one multi-threaded ADD_NW; needed an allocator-aliasing fix) (+5%).
+6. Free options: `GGML_HEXAGON_ROUTER_HVX=0` router on HMX (+9.7%, PPL +0.26%, opt-in; upstream's own default), `GGML_HEXAGON_OPPOLL=1`
+   host spin-wait (+1.9%, one busy host core), `llama-bench --prio 2` (+0.9%).
+
+Negative or neutral (do not retry without a new idea): weight DMA sliced over per-thread queues, one fused dispatch per item (neutral
+alone), l2fetch on the gather, Q4_0 vlut16 dequant and native half multiply (no gain even with HVX 86% busy), router exact-refine
+(could not reproduce the HVX router's PPL; unexplained), ub > 1024 (flat).
+
+Where prefill time goes now (per 1024-token pass, ~1.39 s): experts ~457 ms (33%), router+dense matmuls ~360 ms (26%, router alone 174 ms),
+GDN 115 ms, fused conv 104 ms, ~300 ms of small elementwise/norm/gate ops. Experts are HVX-bound (86% active) with HMX ~28% busy.
+Remaining ideas (each <= ~5%): flatten contiguous elementwise ops with tiny rows (SIGMOID/SCALE/SILU/SOFTPLUS ~60 ms), fuse gate+up+SwiGLU+down
+in VTCM (~50 ms), fused router post-processing ARGSORT/SOFT_MAX/GET_ROWS/SUM/CLAMP/DIV (~40 ms), F16 activation side-outputs to shrink the gather.
+
+Rollback / provenance: `install-prefill-fusions.ps1` (backup `backup-prefill-fusions-prechange`), `install-prefill-main.ps1` (backup
+`backup-prefill-pipe-prechange`). Code is in the `llama.cpp-hexagon` repo (branch main, commits by this campaign); GGML_HEXAGON_MMID_PIPE is ON by default.
+Tooling: `run-prefill-bench.ps1`, `run-prefill-ppl.ps1`, `ab-prefill.ps1` (interleaved A/B), `ab-env.ps1`, `run-fusion-edge-check.ps1`,
+`prefill_prof_sum.py`, `prefill_stage_sum.py`, `npu-lock.ps1` (single-NPU mutex for multi-agent work).
+
+
 Started 2026-09-28. Separate from the decode/correctness campaign in `npu_campaign/STATUS.md`.
 Harness: `npu_campaign/run-prefill-bench.ps1` (llama-bench, production env, no diagnostic HMX builds),
 per-op summary: `npu_campaign/prefill_prof_sum.py` on a `PF_PROFILE=1 ... -Extra:--verbose` log.
