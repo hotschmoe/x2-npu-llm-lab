@@ -247,6 +247,16 @@ K=256) - yet pure exact-dot logits from my kernel do NOT reproduce the HVX route
 difference somewhere: input activation, weight copy, or a subtlety of the reference HVX kernel). Open question; not pursued.
 Practical outcome: `GGML_HEXAGON_ROUTER_HVX=0` (router on HMX, upstream's default) = +9.7% pp512 at PPL +0.26%; opt-in.
 
+## Main build now includes conv-window + expert-combine fusions (2026-09-29)
+
+Installed into `llama.cpp-hexagon/pkg-wos` via `npu_campaign/install-prefill-fusions.ps1` (skel 9A283DFB, catalog 07FF21DC, host
+ggml-hexagon.dll 1B80C6A9). Previous state backed up in `npu_campaign/backup-prefill-fusions-prechange` (host C9E4D8AD, skel 640AA38D,
+catalog BB78A1E3 = the pipelined-experts-only build; the very first backup with the original D2D98EDE/5CB7F7EF is in
+`backup-prefill-pipe-prechange`). Rollback = copy those files back over pkg-wos (host dll in bin\, skel+cat in lib\).
+Verified on the default installed path: PPL 12.1307 (identical), pp512 665 / pp1024 749 t/s at ub1024, decode 28.2/29.5/27.6 tok/s.
+Edge sweeps (prompt sizes 5..1025 words, fusions on vs off, greedy text identical) passed for both fusions.
+Cumulative (installed default, ub1024, pp1024): 454 (session start, ub1024) -> 749 t/s (+65%); at ub512 pp512: ~385 -> ~665.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
@@ -256,3 +266,4 @@ Practical outcome: `GGML_HEXAGON_ROUTER_HVX=0` (router on HMX, upstream's defaul
 - 2026-09-28: pipe8 Q4_0 LUT dequant no gain (reverted); pipe9 exact-range gather +4% (646 t/s pp1024 ub1024).
 - 2026-09-29: prefill conv-window fusion (SSM_CONV+PF+SILU): +10% (715 t/s pp1024 ub1024), PPL identical.
 - 2026-09-29: expert-combine fusion +5% (747 t/s pp1024 ub1024, PPL identical, edge sweep identical); router refine negative.
+- 2026-09-29: installed conv-window + expert-combine fusions into pkg-wos; pp1024 ub1024 749 t/s, PPL identical, decode unchanged.
