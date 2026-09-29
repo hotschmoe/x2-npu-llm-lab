@@ -138,7 +138,7 @@ Off by default in CMake; single-device (mdev.count == 1) only.
 | pipe2 | weight DMA sliced over per-thread queues | 450 | +29% |
 | pipe3 | one worker dispatch per item (scatter(i-2)+gather+DMA+dequant fused) | 453 / 488 | +28% |
 | pipe4 | + l2fetch of gather rows | 489 (no change vs pipe3) - reverted | 0 |
-| pipe5 | ddr_spad 512 KB -> 2 MB (removes per-op memalign of the ~1 MB row-map table) | 551 | +43% |
+| pipe5 | pipe2 code (NOT the fused dispatch; see note) + ddr_spad 512 KB -> 2 MB (removes per-op memalign of the ~1 MB row-map table) | 551 | +43% |
 
 Findings:
 - Same-skel run-to-run and session-to-session drift is 5-10%; only interleaved multi-round A/B is trustworthy.
@@ -148,8 +148,32 @@ Findings:
 - Gather (A_PREP) is 13 us/thread for ~2 rows but l2fetch did not help end to end.
 - PPL (4x512 tokens) stays 12.1307 +/- 1.11278 on pipe, pipe2, pipe3.
 
+Correction: pipe5 was built after a `git checkout` that discarded the uncommitted pipe3 (fused dispatch) patch, so
+pipe5 = pipe2 (per-thread DMA slices, separate gather/scatter dispatches) + 2 MB scratchpad. pipe3's fused dispatch
+alone was +/-0 vs pipe2 in the interleaved A/B; `patch_mmid_fuse.py` re-applies it (tested as pipe6, below).
+
+## Extra results (pipe5)
+
+- ub sweep pp2048 (base -> pipe5): ub512 371 -> 545; ub1024 454 -> 588; ub2048 503 -> 546.
+  At ub2048 more experts exceed m_max=256 rows and fall back to the old serial path, so pipe5 regresses;
+  fix is to chunk hot experts into row-chunks inside the pipeline instead of falling back.
+- `GGML_HEXAGON_ROUTER_HVX=0` (router matmul 2048x256 on HMX, FP16 operand rounding): pp512 552 -> 605 (+9.7%);
+  PPL 12.1307 -> 12.1627 (+0.26%, inside the +/-1.1 stat error) - expert selection can differ; opt-in only.
+- Per-op profile of pipe5 (per pass ~930 ms): experts 373 (40%), router 87, dense mm ~92, linear-attn group
+  (GDN+CPY 60, CONCAT 37, SSM_CONV 32, SILU 24) ~150-170, ADD/MUL 81, rest small.
+
+## Experiments 5-6: fused dispatch re-test and row-chunked experts
+
+- pipe6 (= pipe5 + fused per-item dispatch, `patch_mmid_fuse.py`): pp512 550.7 vs 551.5 - neutral (kept in source).
+- pipe7 (= pipe6 + `patch_mmid_chunk.py`): experts with > m_max (256) rows are split into row-chunk items inside
+  the pipeline instead of falling back to the legacy serial loop.
+  pp2048: ub1024 585 -> 614 (+5%), ub2048 555 -> 578 (+4%). PPL ctx2048 (2 chunks) base 8.2042 = pipe7 8.2042;
+  time/pass 4.37 s -> 3.64 s.
+- Best config so far: pipe7, ub1024, ~614 t/s (base at ub1024: 454, +35%); with ROUTER_HVX=0 (opt-in) add ~+10%.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
 - 2026-09-28: Experiment 1 (pipelined MoE expert kernel): pp512 385 -> 485 (+26%), pp128 +53%, PPL identical.
 - 2026-09-28: pipe2/3/4/5: fused dispatch, l2fetch (no gain, reverted), ddr_spad 2 MB (+13%). pp512 ~385 -> ~551.
+- 2026-09-28: pipe6 (fused dispatch, neutral), pipe7 (row-chunked hot experts): pp2048 ub1024 614 t/s, PPL identical.

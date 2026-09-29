@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $env:GGML_HEXAGON_OPBATCH = '3072'; $env:GGML_HEXAGON_REPLAY = '1'; $env:GGML_HEXAGON_OPFUSION = '1'
-$env:GGML_HEXAGON_ROUTER_HVX = '1'; $env:GGML_HEXAGON_MM_SELECT = '2'; $env:GGML_HEXAGON_FA_SELECT = '2'; $env:GGML_HEXAGON_GDN_SELECT = '2'
+$env:GGML_HEXAGON_ROUTER_HVX = if ($env:PF_ROUTER) { $env:PF_ROUTER } else { '1' }; $env:GGML_HEXAGON_MM_SELECT = '2'; $env:GGML_HEXAGON_FA_SELECT = '2'; $env:GGML_HEXAGON_GDN_SELECT = '2'
 $lib = if ($LibDir) { (Resolve-Path (Join-Path $repoRoot $LibDir)).Path } else { "$repoRoot\llama.cpp-hexagon\pkg-wos\lib" }
 $env:ADSP_LIBRARY_PATH = "$lib;"
 $exe = "$repoRoot\llama.cpp-hexagon\pkg-wos\bin\llama-perplexity.exe"
