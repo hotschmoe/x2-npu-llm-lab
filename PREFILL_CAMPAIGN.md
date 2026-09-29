@@ -7,7 +7,7 @@ Session 2026-09-28/29, one X2 Elite machine. Numbers are llama-bench t/s, produc
 | | session start | now |
 | --- | ---: | ---: |
 | pp512, ub512 | 381 | ~665 |
-| pp1024, ub1024 | 454 | ~750 (764 with OPPOLL=1) |
+| pp1024, ub1024 | 454 | ~758 (~772 with OPPOLL=1) |
 | pp4096 (ub1024) | ~470 | 729 |
 | pp8 / 16 / 32 / 64 / 128 / 256 (ub512) | -, 71, -, 158, 244, - | 83 / 142 / 208 / 322 / 420 / 546 |
 | perplexity (16 x 512 tokens) | 13.3331 | 13.3331 (identical), 1.52 -> 0.86 s per pass |
@@ -19,7 +19,9 @@ What moved the numbers, in order of value (all bit-identical output unless noted
 3. Exact-range activation gather: the stock gathered worker padded each thread to 32 rows and converted ~4.5x redundant rows (+4%).
 4. Prefill conv-window fusion (CONCAT + CPY + SSM_CONV + SILU -> one token-major op, no transposes) (+10%).
 5. Prefill expert-combine fusion (MUL + 7 ADDs -> one multi-threaded ADD_NW; needed an allocator-aliasing fix) (+5%).
-6. Free options: `GGML_HEXAGON_ROUTER_HVX=0` router on HMX (+9.7%, PPL +0.26%, opt-in; upstream's own default), `GGML_HEXAGON_OPPOLL=1`
+6. Elementwise flatten (`patch_unary_flatten.py`, DSP-side, GGML_HEXAGON_UNARY_FLATTEN): contiguous F32 unary ops with tiny rows
+   (SIGMOID [1,32,T], SCALE/SILU [128,..], SOFTPLUS [32,T]) are presented as 1024-wide rows; +1.2% (758 vs 749), PPL identical. Installed.
+7. Free options: `GGML_HEXAGON_ROUTER_HVX=0` router on HMX (+9.7%, PPL +0.26%, opt-in; upstream's own default), `GGML_HEXAGON_OPPOLL=1`
    host spin-wait (+1.9%, one busy host core), `llama-bench --prio 2` (+0.9%).
 
 Negative or neutral (do not retry without a new idea): weight DMA sliced over per-thread queues, one fused dispatch per item (neutral
