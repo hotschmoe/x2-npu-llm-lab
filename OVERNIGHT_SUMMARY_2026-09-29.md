@@ -23,11 +23,15 @@ prefill conv-window+SiLU fusion, prefill expert-combine fusion (with an allocato
 elementwise ops. Decode/MTP (by the decode agent, MTP_SPEEDUP_LOG.md): multi-token conv window, MoE tail fusions for 2-4 tokens, small-M
 MUL_MAT+ADD, fused catch-up, draft vocabulary cap, diagnostics.
 
-## Installed state (llama.cpp-hexagon/pkg-wos)
+## Installed state (llama.cpp-hexagon/pkg-wos) - FINAL
 
-Installed = the prefill line as of commit 7773910: skel 5D253AAF, catalog BF3823DA, host ggml-hexagon.dll 1B80C6A9. This has the prefill
-gains but NOT the MTP work. The merged build (prefill line + MTP work, branch `npu-htp-decode` at the merge commit) is packaged in
-`npu_campaign/pkg-final` and was being validated at the time of writing (see "Merge status" below). Rollback files:
+Installed = the merged build (prefill line + MTP work), `llama.cpp-hexagon` branch `npu-htp-decode` at the merge commit (ee4381b), via
+`npu_campaign/install-merged.ps1`: skel 37AD9661, catalog 080F8EA3, host ggml-hexagon.dll E90183F8, llama.dll 4BEA60C0.
+Verified on the default installed path: PPL 12.1307 (bit-identical to the original), pp512 673 / pp1024 762 t/s, plain decode 27.2-27.4 tok/s,
+MTP (draft-max 1) 29.0 vs plain 26.9 tok/s (+8.0%, 106/149 accepted); merge gates (MTP target logits 128/128 bit-identical on 3 prompts, fusion edge check
+6/6) passed. Same-build plain repeat runs differ from themselves at the prompt row for BOTH the old and the new build, i.e. the plain-path instability is
+pre-existing and not introduced by the merge. Caveat: tools the decode agent did not rebuild (batched-bench, mtmd-cli, diffusion-cli) are older than the new DLLs.
+Rollbacks (every replaced file backed up): `backup-merged-install-prechange` (state just before the merge: prefill line at 7773910 without MTP work),
 `backup-prefill-fusions-prechange` (host C9E4D8AD, skel 640AA38D, cat BB78A1E3), `backup-prefill-pipe-prechange` (original D2D98EDE/5CB7F7EF).
 
 ## How to use
@@ -65,4 +69,6 @@ router exact-refine (my exact-dot router did not reproduce the HVX router's PPL:
 
 ## Merge status
 
-(Updated at the end of the session: see the last section of PREFILL_CAMPAIGN.md "Log".)
+Done. `mtp-speedup` (decode agent) and `npu-htp-decode` (prefill line) were merged cleanly at ee4381b (the only content the decode branch lacked was the
+column-chunk change in matmul-ops.c, which it did not touch). The decode agent's worktree `llama.cpp-hexagon-mtp` and branch `mtp-speedup` still exist; they can be
+deleted once nobody needs them.

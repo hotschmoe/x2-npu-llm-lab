@@ -323,3 +323,4 @@ Cumulative (installed default, ub1024, pp1024): 454 (session start, ub1024) -> 7
 - 2026-09-29: prefill conv-window fusion (SSM_CONV+PF+SILU): +10% (715 t/s pp1024 ub1024), PPL identical.
 - 2026-09-29: expert-combine fusion +5% (747 t/s pp1024 ub1024, PPL identical, edge sweep identical); router refine negative.
 - 2026-09-29: installed conv-window + expert-combine fusions into pkg-wos; pp1024 ub1024 749 t/s, PPL identical, decode unchanged.
+- 2026-09-29: column-chunked pipeline (Gemma 4 +21.5%); merged with the decode agent's MTP branch (ee4381b), validated (PPL 12.1307, MTP logits bit-identical, edge sweep), installed via install-merged.ps1; MTP +8% on the installed path.
