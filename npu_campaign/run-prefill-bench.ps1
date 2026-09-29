@@ -5,7 +5,8 @@ param(
     [int]$UB = 512,
     [int]$Reps = 2,
     [string]$Extra = '',
-    [ValidateSet('HTP0', 'none')][string]$Device = 'HTP0'
+    [ValidateSet('HTP0', 'none')][string]$Device = 'HTP0',
+    [string]$LibDir = ''
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
@@ -17,7 +18,8 @@ if ($env:PF_PROFILE) { $env:GGML_HEXAGON_PROFILE = $env:PF_PROFILE }
 $env:GGML_HEXAGON_MM_SELECT = '2'
 $env:GGML_HEXAGON_FA_SELECT = '2'
 $env:GGML_HEXAGON_GDN_SELECT = '2'
-$env:ADSP_LIBRARY_PATH = "$repoRoot\llama.cpp-hexagon\pkg-wos\lib;"
+$lib = if ($LibDir) { (Resolve-Path (Join-Path $repoRoot $LibDir)).Path } else { "$repoRoot\llama.cpp-hexagon\pkg-wos\lib" }
+$env:ADSP_LIBRARY_PATH = "$lib;"
 $exe = "$repoRoot\llama.cpp-hexagon\pkg-wos\bin\llama-bench.exe"
 $out = "$PSScriptRoot\prefill-$Label"
 $ngl = if ($Device -eq 'none') { 0 } else { 99 }

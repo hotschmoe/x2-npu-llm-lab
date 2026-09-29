@@ -107,6 +107,29 @@ The win is removing/overlapping phases, not a faster multiplier:
 9. Small stuff: GDN/CONCAT/ADD/MUL fusion (~25%): CONCAT of conv state, per-layer ADD residuals.
 10. Other runtimes/formats as controls: MXFP4 GGUF on HTP, OpenCL, QAIRT for a fixed expert-shaped GEMM.
 
+## Dev loop (no system install needed)
+
+- `npu_campaign/build-prefill-htp.cmd` (DSP-only v81 build; env `PF_BLD` = build dir, `PF_CMAKE_EXTRA` = cmake flags)
+- `npu_campaign/prefill-cand.ps1 -Name X -Build <dir>` packages + signs a candidate lib dir (`prefill-cand-X`)
+- `run-prefill-bench.ps1 -LibDir npu_campaign\prefill-cand-X` uses it via ADSP_LIBRARY_PATH; installed pkg-wos untouched
+- `run-prefill-ppl.ps1 -LibDir ...` correctness gate: perplexity, 4x512-token chunks on `ppl_text.txt`
+- Clean rebuild of unmodified source (`base`) reproduces the installed baseline: pp512 385 (vs 381).
+
+## Experiment 1: cross-expert software pipeline (`GGML_HEXAGON_MMID_PIPE`, htp/matmul-ops.c `hmx_mm_id_pipelined`)
+
+Flat (expert, weight) work list; raw-weight DMA for item i+1, HMX for item i, output scatter for item i-1 all
+overlap dequant of item i; activation F32->F16 gather done once per expert and shared by gate+up (NX);
+double-buffered raw/fp16-weight/act/out in VTCM; experts with > m_max (<=256) rows fall back to the old path.
+Off by default in CMake; single-device (mdev.count == 1) only.
+
+| | base | pipe |
+| --- | ---: | ---: |
+| pp128 | 228 | 348 |
+| pp512 | 385 | 485 |
+| PPL (4x512) | 12.1307 | 12.1307 (bit-identical output stat) |
+| perplexity s/pass | 1.44 | 1.08 |
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
+- 2026-09-28: Experiment 1 (pipelined MoE expert kernel): pp512 385 -> 485 (+26%), pp128 +53%, PPL identical.
