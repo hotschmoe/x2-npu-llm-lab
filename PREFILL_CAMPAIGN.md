@@ -237,6 +237,16 @@ kernel must stage that input (here: all weights DMA'd to VTCM in a first work_qu
 Also: unaligned DMA source addresses were never the problem (weights 32 B aligned windows are fine); the 82 PPL was deterministic in
 serial mode and racy in pipelined mode, which is the signature of an alias.
 
+## Experiment 11 (negative): router refine - exact recompute of top-16 candidates after the HMX router
+
+`patch_router_refine.py` (reverted): keep the HMX (fp16-operand) router matmul, then per token pick the top-16 approximate
+logits, recompute them exactly in F32 on HVX (VTCM copy of the 2 MB router weights, `vec_dot_f32_f32_aa_1x1`) and write them
+back. PPL (ctx512): HVX reference 12.1307; HMX approx 12.1627; refine K=16 12.1769; refine K=256 (all logits recomputed, HMX
+output ignored) 12.1703. Op lists identical between ROUTER_HVX=0/1, the refine demonstrably ran (router op 0.4 -> 4.6 ms with
+K=256) - yet pure exact-dot logits from my kernel do NOT reproduce the HVX router's PPL. Unexplained (a ~1e-2 logit-scale
+difference somewhere: input activation, weight copy, or a subtlety of the reference HVX kernel). Open question; not pursued.
+Practical outcome: `GGML_HEXAGON_ROUTER_HVX=0` (router on HMX, upstream's default) = +9.7% pp512 at PPL +0.26%; opt-in.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
@@ -245,3 +255,4 @@ serial mode and racy in pipelined mode, which is the signature of an alias.
 - 2026-09-28: pipe6 (fused dispatch, neutral), pipe7 (row-chunked hot experts): pp2048 ub1024 614 t/s, PPL identical.
 - 2026-09-28: pipe8 Q4_0 LUT dequant no gain (reverted); pipe9 exact-range gather +4% (646 t/s pp1024 ub1024).
 - 2026-09-29: prefill conv-window fusion (SSM_CONV+PF+SILU): +10% (715 t/s pp1024 ub1024), PPL identical.
+- 2026-09-29: expert-combine fusion +5% (747 t/s pp1024 ub1024, PPL identical, edge sweep identical); router refine negative.

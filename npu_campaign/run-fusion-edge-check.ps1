@@ -4,11 +4,12 @@ param(
     [string]$LibDir = 'npu_campaign\prefill-cand-convfuse',
     [string]$BinDir = 'llama.cpp-hexagon\pkg-prefill\bin',
     [int]$OffMask = 8062,            # 8190 - 128 (SSM_CONV_WIN off)
-    [int[]]$Words = @(6, 40, 130, 260, 520, 900),
+    [string]$WordsCsv = '6,40,130,260,520,900',
     [int]$Ub = 512,
     [string]$Tag = 'edge'
 )
 $ErrorActionPreference = 'Stop'
+$Words = @($WordsCsv -split ',' | ForEach-Object { [int]$_ })
 $repoRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'npu-lock.ps1')
 $src = Get-Content "$repoRoot\PREFILL_CAMPAIGN.md" -Raw
