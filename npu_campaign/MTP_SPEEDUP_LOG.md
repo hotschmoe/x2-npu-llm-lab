@@ -241,3 +241,35 @@ plain vs installed, prefill PPL, fusion edge check).
   (row-0 difference) is the known intermittent plain-path instability, but without repeat pairs it is not proven
   here.
 - Fusion edge check (run-fusion-edge-check.ps1, merged bin+lib, OPFUSION=1 vs 8062, prompts of 6/40/130/260/520/900 words, ub 512): all 6 greedy transcripts identical.
+
+## 2026-09-29 06:55  FINAL: merged build, untraced ABBA, conclusions
+
+Build: llama.cpp-hexagon worktree `llama.cpp-hexagon-mtp`, branch `mtp-speedup`, merge commit `9831408`
+(= main line npu-htp-decode 7773910 + MTP work). Package `npu_campaign/pkg-mtp-merged` (host ggml-hexagon.dll
+E90183F8..., skel EDB46343...). Recommended MTP invocation (see run-mtp-speed.ps1):
+`--spec-type draft-mtp --spec-draft-n-max 1` with env `LLAMA_MTP_FUSED_CATCHUP=1 LLAMA_MTP_DRAFT_VOCAB=65536`,
+expanded MTP GGUF, default replay/fusion settings (all new fusions default on).
+
+Untraced ABBA, 256 generated tokens, installed main-line plain (pkg-wos) vs merged-build MTP:
+| prompt | plain tok/s (runs) | MTP tok/s (runs) | gain | MTP acceptance |
+| --- | --- | --- | ---: | --- |
+| Hello | 27.93 (28.10, 27.75) | 30.48 (30.40, 30.55) | +9.1% | 106/149 |
+| sky prose | 27.30 (27.83, 26.77) | 29.84 (28.60, 31.08) | +9.3% | 117/138 |
+| hash-table prose | 26.74 (26.81, 26.66) | 30.28 (30.23, 30.33) | +13.2% | 114/141 |
+Campaign start: MTP was 24.2 vs plain 28.1 tok/s (-14%). No garbage transcript in any final run.
+
+What made the difference (DSP ms per MTP step, profiled): verify M=2 graph 58.7 -> 49.0 (conv-window K-snapshot
+fusion -6.8, MoE-tail/router/shexp/MUL_MAT+ADD T-row fusions -3); draft+catch-up 5.3+1.55 in two decodes -> ~2.4 in
+one (fused catch-up -1.5 and a host round trip, draft vocab cap -2.5 incl. top-k). Step wall ~71 -> ~57 ms.
+
+Correctness status: MTP target logits bit-identical to plain-path/base MTP on 3 prompts x 128 rows (base build and
+merged vs installed main line); fused catch-up draft rows bit-identical (dmax1); prefill PPL 12.1307 exact; edge check
+identical. Open: (1) intermittent garbage with >1 replay slots + fused catch-up + varying graph shapes (mitigated:
+1 slot default, fc only for dmax1; root cause unknown); (2) fc for draft-max 2 changes drafts; (3) the pre-existing
+intermittent plain-path numerical instability (not fixed; plain-vs-MTP identity is only guaranteed when plain is
+stable); (4) host spin-poll (`GGML_HEXAGON_OPPOLL=1`) speeds both plain and MTP ~8.8% because an idle host CPU slows
+the NPU's own batch time ~6% - power cost not yet measured.
+
+Remaining levers (estimated): GDN K-snapshot writes via DMA (~0.5 ms/step), FA for 2 queries (~0.6), per-op overhead
+of small ops at T=2 (~1), and expert weights at M=2 (+5.8 ms, bandwidth-bound; only better acceptance amortizes it).
+Draft-max 2 is not a win at current costs (M=3 verify 64 ms).
