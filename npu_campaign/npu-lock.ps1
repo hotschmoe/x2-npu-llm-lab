@@ -3,6 +3,7 @@
 $script:NpuLockDir = 'C:\Users\hotschmoe\Documents\llm_inference\npu_campaign\.npu.lock'
 function Enter-NpuLock {
     param([string]$Owner = 'unknown', [int]$TimeoutSec = 14400)
+    if ($env:NPU_LOCK_HELD -eq '1') { return }   # caller (lockrun.py) already holds the lock
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while ($true) {
         try {
@@ -18,8 +19,8 @@ function Enter-NpuLock {
                 if (-not $alive -and $t -lt (Get-Date).AddMinutes(-2)) { Remove-Item -LiteralPath $script:NpuLockDir -Recurse -Force -ErrorAction SilentlyContinue; continue }
             }
             if ((Get-Date) -gt $deadline) { throw "NPU lock timeout (held by: $(Get-Content -LiteralPath $f -ErrorAction SilentlyContinue))" }
-            Start-Sleep -Seconds 5
+            Start-Sleep -Milliseconds 200
         }
     }
 }
-function Exit-NpuLock { Remove-Item -LiteralPath $script:NpuLockDir -Recurse -Force -ErrorAction SilentlyContinue }
+function Exit-NpuLock { if ($env:NPU_LOCK_HELD -eq '1') { return }; Remove-Item -LiteralPath $script:NpuLockDir -Recurse -Force -ErrorAction SilentlyContinue }

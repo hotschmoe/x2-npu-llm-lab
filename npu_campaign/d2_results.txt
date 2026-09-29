@@ -1,0 +1,58 @@
+[ctrl] rows total 30 per request 3; distinct completions: 2
+[ctrl] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=10 env=[]
+[afterall] rows total 30 per request 3; distinct completions: 2
+[afterall] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=10 env=[]
+[aftersmall] rows total 30 per request 3; distinct completions: 2
+[aftersmall] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=10 env=[]
+[afterbig] rows total 30 per request 3; distinct completions: 2
+[afterbig] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=10 env=[]
+[ctrl] rows total 30 per request 3; distinct completions: 2
+[ctrl] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=9 env=[]
+[delay50] rows total 30 per request 3; distinct completions: 2
+[delay50] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=7 env=[]
+[touch7] rows total 30 per request 3; distinct completions: 1
+[touch7] RESULT n=10 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1 env=[]
+[delay5] rows total 30 per request 3; distinct completions: 2
+[delay5] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=10 env=[]
+[touch2] rows total 30 per request 3; distinct completions: 1
+[touch2] RESULT n=10 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1 env=[]
+[touch6] rows total 30 per request 3; distinct completions: 1
+[touch6] RESULT n=10 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1 env=[]
+[t2s] rows total 30 per request 3; distinct completions: 1
+[t2s] RESULT n=10 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1 env=[]
+[t2m] rows total 30 per request 3; distinct completions: 1
+[t2m] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=10 env=[]
+[t2l] rows total 30 per request 3; distinct completions: 1
+[t2l] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=7 env=[]
+[t2x] rows total 30 per request 3; distinct completions: 2
+[t2x] RESULT n=10 rows_per_req=3 rows_with_variation=3 distinct_request_traces=8 env=[]
+[flushsync] Traceback (most recent call last):
+[t2a] Traceback (most recent call last):
+[t2b] Traceback (most recent call last):
+[g1] Traceback (most recent call last):
+[ctrl] Traceback (most recent call last):
+[ctrl-opb1] Traceback (most recent call last):
+[afterall] distinct completions: 1: .  <think>
+[afterall] RESULT n=4 rows_per_req=3 rows_with_variation=3 distinct_request_traces=4
+[nan1] distinct completions: 1: ///
+[nan1] RESULT n=1 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1
+[coh1] distinct completions: 1: .  <think>
+[coh1] RESULT n=2 rows_per_req=3 rows_with_variation=3 distinct_request_traces=2
+[coh2] distinct completions: 3: .  <think> || .  The || .  What
+[coh2] RESULT n=6 rows_per_req=3 rows_with_variation=3 distinct_request_traces=6
+[coh3-v] distinct completions: 3: .  <think> || .  The || .  What
+[coh3-v] RESULT n=4 rows_per_req=3 rows_with_variation=3 distinct_request_traces=4
+[coh3-nv] distinct completions: 3: .  <think> || .  The || .  What
+[coh3-nv] RESULT n=6 rows_per_req=3 rows_with_variation=3 distinct_request_traces=6
+[flush64] distinct completions: 1: .  <think>
+[flush64] RESULT n=10 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1
+[fix64] distinct completions: 1: .  <think>
+[fix64] RESULT n=20 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1
+[fix32] distinct completions: 1: .  <think>
+[fix32] RESULT n=10 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1
+[ctrl-p2opb1] distinct completions: 1:   <think> 
+[ctrl-p2opb1] RESULT n=2 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1
+[fix64-p2] distinct completions: 1:   <think> 
+[fix64-p2] RESULT n=10 rows_per_req=3 rows_with_variation=0 distinct_request_traces=1
+[ctrl-p2base] distinct completions: 1:   <think> 
+[ctrl-p2base] RESULT n=6 rows_per_req=3 rows_with_variation=2 distinct_request_traces=2
