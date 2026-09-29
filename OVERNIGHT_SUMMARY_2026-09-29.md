@@ -36,7 +36,8 @@ Rollbacks (every replaced file backed up): `backup-merged-install-prechange` (st
 
 ## How to use
 
-- Prefill: `-b 2048 -ub 1024` (the interactive server script still uses `-b 512 -ub 128`; ub1024 is worth ~+13% on long prompts).
+- Prefill: `-b 2048 -ub 1024`. Measured in llama-server on a 1379-token prompt: 3.17 s (435 t/s, old `-b 512 -ub 128`) -> 1.78 s (775 t/s), decode about -2%
+  (26.1 vs 26.5 tok/s); short prompts unchanged. `run-qwen-interactive-server.ps1` now defaults to these values (`-B`/`-Ub` parameters override).
   Optional: `GGML_HEXAGON_OPPOLL=1` (+1.9%, one busy host core), `llama-bench --prio 2` (+0.9%), `GGML_HEXAGON_ROUTER_HVX=0` (router on HMX, +9.7%,
   PPL +0.26%; CPU reference PPL is 12.2015 vs HVX-router 12.1307 vs HMX-router 12.1627, i.e. inside the NPU-vs-CPU spread; upstream's own default).
 - MTP: see `npu_campaign/run-mtp-speed.ps1` (`--spec-type draft-mtp --spec-draft-n-max 1`, `LLAMA_MTP_FUSED_CATCHUP=1`, `LLAMA_MTP_DRAFT_VOCAB=65536`,
