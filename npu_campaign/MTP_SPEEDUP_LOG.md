@@ -120,3 +120,124 @@ Untraced ABBA (256 tokens, Hello, rounds: inst/base/mtp/mtp/base/inst):
 Acceptance 106/149 (0.71). Draft-max 2 / 3 on this build: 27.94 / 21.13 tok/s (Hello128), worse than dmax1.
 Wall breakdown per MTP step (Hello128, MTP profile): step 57.2 ms = verify llama_decode 52.2 (DSP ~49) +
 draft 3.3 (DSP 2.44) + ~1.7 sampling/server; host+sync ~5.8 ms/step.
+
+### 02:20  Gates on two more prompts; policy sweep on the tail3 build
+
+Full config (tail3 build, fc + dv65536, dmax 1) vs base-build MTP, complete target logit rows (traced 128 tokens):
+sky prose 128/128 bit-identical (acceptance 59/68 both), hash-table prose 128/128 bit-identical (54/72 base,
+55/71 candidate). With Hello (01:45) that is 3 prompts x 128 target rows exact. Reference traces kept as
+`mtp-speed/REF-base-mtp1-{hello,sky,hash}128.logits.bin`.
+
+Single-run policy sweep, Hello 256 tokens, tail3 + fc + dv65536 (plain on this prompt ~26.9):
+| dmax | p-min | tok/s | acceptance |
+| ---: | ---: | ---: | --- |
+| 1 | 0 | ~30.0 (ABBA) | 106/149 |
+| 1 | 0.3 | 30.47 | 106/142 |
+| 1 | 0.5 | 29.73 | 101/126 |
+| 1 | 0.7 | 25.62 | 72/136 (!) |
+| 2 | 0.5 | 29.21 | 126/170 |
+| 2 | 0.7 | 30.97 | 114/138 |
+The dmax1/p0.7 outlier is a dv interaction, not a bug: with p0.7 and no dv, acceptance is 89/104-106 (fc on or off).
+Truncating the draft vocabulary removes emoji tokens (ids >= 65536, frequent in this chat reply) from the draft
+softmax, which inflates the in-vocab top-1 probability exactly where the draft is wrong, so a p-min gate lets those
+bad drafts through. Use p-min only with dv off or a larger dv.
+Verify cost now scales ~linearly: M=1 33.65, M=2 49.0, M=3 64.0 ms DSP (+15 ms per extra token: experts ~6.5,
+dense HVX matmuls ~2.6, GDN ~2.3, rest small ops).
+
+## 2026-09-29 03:00  C. Host/transport overhead study (affects plain and MTP alike)
+
+New env-gated diagnostics (worktree): `LLAMA_DECODE_TIMING=1` (host phase timing of llama_context::decode),
+`GGML_HEXAGON_TIME_BATCH=1` (DSP batch usec from the response vs host-observed submit->response),
+`GGML_HEXAGON_TIME_GET=1` (host memcpy of outputs).
+- Host work per decode is small: batch prep/graph reuse/set_inputs ~0.1 ms; logits copy (1-2 MB) ~0.03 ms.
+  The draft graph is rebuilt on every other call (fused catch-up alternates 1- and 2-row draft batches): ~1.3 ms
+  enqueue for those calls.
+- The big effect is on the DSP side: plain decode batch (1384 ops) takes 35.4 ms of DSP time when the host thread
+  blocks in dspqueue_read, but 33.35 ms when the host spins (`GGML_HEXAGON_OPPOLL=1`); host-observed wake latency is
+  only ~1.0 ms (block) vs 0.15 ms (spin). So an idle host CPU slows the NPU itself by ~6% (likely cluster idle
+  states / coherent-memory snoop or fabric clocks; the DSP already votes max bus/core corners, DCVS off).
+  A predicted-duration hybrid (`OPPOLL=2`: high-res sleep then spin the last 2 ms) recovers the wake latency but not
+  the DSP slowdown (27.72 vs spin 29.54 tok/s plain), confirming the NPU needs the host core awake for the whole batch.
+- Untraced single runs, Hello256: plain block 27.14 / spin 29.52 (+8.8%); MTP block 30.07 / spin 32.73 (+8.8%).
+  The relative MTP gain is unchanged (+10.8% vs +10.9%); spinning costs one busy host core (power not yet measured).
+
+### 03:25  Constant-shape draft batches: no gain; plain-path instability hypothesis (not tested)
+
+`LLAMA_MTP_PAD_ROWS=1` (recompute the previous kept row after a rejection so draft batches always have 2 rows) cut
+draft-graph rebuilds from 38/64 to 0/64, but steady-state per-call cost was already only ~0.1 ms for a rebuild
+(build 0.07 + enqueue 0.04); outputs+wait unchanged (~3.0 ms). Left off by default. Run-to-run variation of the verify
+wait (49.7 vs 51.9 ms in consecutive runs) is ~5%, which is why only ABBA numbers are reported as results.
+
+Hypothesis for the intermittent plain-path numerical failure (from reading htp-tensor.c, not yet tested): the DSP
+dirty-range tracker only covers lines *written* through the cache. A line that is merely cached *clean* (e.g. a source
+read by HVX) is never invalidated before a later op DMA-writes a new tensor to the same (allocator-reused) address.
+If a subsequent op then does a cached store into a *different* tensor sharing that 128-byte line, the store merges into
+the stale clean line, and its eventual write-back overwrites the DMA-written bytes. The corruption depends on when the
+line is evicted, i.e. it is intermittent, it needs sub-line / small tensors, and it is cured by clean+invalidate of
+small tensors before each op but not by clean alone - all consistent with the decode campaign's actsrc-small results.
+A targeted test: invalidate (not just clean) the head/tail partial lines of every DMA destination before the op, or
+make the allocator 128-byte align every activation tensor/view that is written by DMA.
+
+## D. Policy ABBA (fixed env leak) and a correctness failure with draft-max 2
+
+Harness bug found and fixed: `mtp-abba.ps1` / `mtp-gate.ps1` invoke run-mtp-speed.ps1 in-process, so an ExtraEnv
+setting leaked into later runs (abba2h was invalid: dv stayed on). run-mtp-speed now clears every campaign knob first.
+The earlier gates are unaffected (their ref arms always ran before cand arms); abba1 is unaffected (plain arms).
+
+Policy ABBA (256 tokens, 2 rounds each, pmin pkg = tail3 code + LLAMA_MTP_PMIN_NEXT):
+| prompt | d1 + fc + dv65536 | d1 + fc, full vocab | d2 + fc, p-min 0.7 |
+| --- | --- | --- | --- |
+| Hello | 30.89 (31.87, 29.90) acc 106/149 | 28.48 acc 107/148 | 25.69 acc 112/146 |
+| sky prose | 32.41 (32.42, 32.40) acc 117/138 | 31.37 acc 120/134 | 22.30 (28.19, **16.40**) |
+Draft vocab cap is worth +3..8% at equal acceptance. Draft-max 2 with p-min 0.7 is worse.
+
+**Correctness failure:** one of the two d2/p0.7 sky runs produced garbage ("//////..." after "**Explanation:**",
+acceptance 58/356). Reproduced 1/3 with the pmin build (fc on, 4 replay slots). Controls on the same prompt/policy:
+base build 4/4 clean (acceptance 150/160); pmin build with fc OFF 4/4 clean (150/160); fc ON + new fusions off
+3/3 clean (132/160); fc ON + `GGML_HEXAGON_REPLAY_SLOTS=1` 5/5 clean (132/160). So the failure needs fc + the
+multi-slot replay cache + draft-max 2 (varying draft/verify graph shapes); dmax1 runs (>20 so far, all gates) never
+showed it. Note also that fc changes draft-max-2 drafts (132/160 vs 150/160 accepted), i.e. fc is only draft-exact
+for draft-max 1 (checked by the 74/74 draft-row gate); for dmax>1 it needs a separate audit. Suspected mechanism for
+the *target* garbage: a corrupt draft token/embedding fed into the verify batch can put NaN into K/V of a later row,
+and 0 * NaN in masked attention poisons earlier rows even though the draft is then rejected. Mitigation now: replay
+slots limited / fc restricted to draft-max 1 (see next entry).
+
+### Correction + mitigation (replay slots)
+
+Correction to the 02:20 sweep note: the dmax1/p-min 0.7 outlier (72/136 accepted, 25.62 tok/s) was NOT a draft-vocab
+calibration effect. A scan of every run output found three garbage transcripts ("/////..."): that run
+(t-pol-d1-p0.7-hello256, fc + dv + 4 replay slots) and the two dmax2/p0.7 sky runs. With the same config but
+`GGML_HEXAGON_REPLAY_SLOTS=1` it is clean 3/3 with 89/106 accepted (0.84, same as the no-dv run).
+Common factor of all failures: fused catch-up + multi-slot replay + varying verify/draft graph shapes (p-min or dmax2).
+Root cause not identified (read of the replay code found no stale-uid path; uids are never reused after a rebuild).
+ABBA rs4 vs rs1 (dmax1, fc + dv, Hello256): 29.97 vs 29.70 tok/s (<1%), so the default is now 1 slot
+(`opt_replay_slots = 1`, env override kept for research), and fused catch-up auto-disables for draft-max > 1
+(its drafts differ from the unfused path there: 132/160 vs 150/160). All reported gates/ABBA for the recommended
+config (dmax1, no p-min) never showed garbage (>20 runs incl. 3-prompt target gates).
+
+## Merge with main line (npu-htp-decode 7773910) - coordinator request
+
+mtp-speedup merge commit `9831408` (llama.cpp-hexagon worktree branch `mtp-speedup`; npu-htp-decode not moved).
+Conflicts in ggml-hexagon.cpp / ssm-conv.c / ssm-conv.h resolved by keeping both sides:
+- kernel params: `fused_window` (2 = prefill, 3 = MTP), then main's `silu`, then MTP `n_ns`, `ns_off[3]`.
+- conv windows disjoint by T: MTP K-snapshot window T <= 3 (host matcher and DSP check), prefill window T >= 4.
+- ADD_NW: MTP T-row path (T <= 4, kernel_params[2] = 0 -> existing worker loops over src->ne[2]) is tried before
+  the prefill expert-combine matcher (kernel_params[2] = T > 1 -> prefill worker); binary-ops.c auto-merged.
+- Found and fixed in the prefill conv matcher the same latent bug as in the old decode matcher: in MTP mode
+  (n_rs_seq > 0) a prompt ubatch has a second snapshot CPY that reads a *view* of the CONCAT window; the matcher only
+  checked `in == window`, so it would fuse and leave that CPY reading the unmaterialized window. It now also rejects
+  `in->view_src == window` (such windows fall to the MTP fusion only when T <= 3, else stay unfused).
+Gates on the merged build are running (`mtp-merge-gates.ps1`: 3-prompt MTP target logits vs installed main line,
+plain vs installed, prefill PPL, fusion edge check).
+
+### Merged-build gates (pkg-mtp-merged: host E90183F8, skel EDB46343)
+
+- MTP target logits, merged build (fc + dv65536, dmax1) vs installed main line (pkg-wos host 1B80C6A9, skel 5D253AAF,
+  plain MTP): Hello 128/128, sky 128/128, hash 128/128 full-vocabulary rows bit-identical.
+- Prefill PPL (run-prefill-ppl.ps1, 4x512, merged bin+lib): 12.1307 +/- 1.11278 (exact).
+- Plain Hello128, merged vs installed: first bit difference at the prompt row, transcript split at token 85.
+  Plain-only changes in the merge are none by construction (all MTP fusions need T <= 4 rows, the prompt is 13
+  tokens, M=1 decode uses the unchanged matchers, replay defaults to the original single slot); this pattern
+  (row-0 difference) is the known intermittent plain-path instability, but without repeat pairs it is not proven
+  here.
+- Fusion edge check (run-fusion-edge-check.ps1, merged bin+lib, OPFUSION=1 vs 8062, prompts of 6/40/130/260/520/900 words, ub 512): all 6 greedy transcripts identical.

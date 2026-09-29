@@ -17,7 +17,7 @@ if not exist build-mtp\build.ninja (
   cmake --preset arm64-windows-snapdragon-release -B build-mtp -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=ON -DGGML_HEXAGON_HTP_CERT= %*
   if errorlevel 1 ( echo BUILD_EXIT=2 & exit /b 2 )
 )
-cmake --build build-mtp --parallel 6 --target llama-cli llama-bench llama-completion test-backend-ops
+cmake --build build-mtp --parallel 6 --target llama-cli llama-bench llama-completion llama-perplexity test-backend-ops
 if %errorlevel% neq 0 ( echo BUILD_EXIT=3 & exit /b 3 )
 rem the ExternalProject does not track DSP source changes: build the v81 skel explicitly
 cmake --build build-mtp\ggml\src\ggml-hexagon\htp-v81-prefix\src\htp-v81-build --parallel 6

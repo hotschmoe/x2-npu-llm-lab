@@ -12,7 +12,7 @@ New-Item -ItemType Directory "$dst\bin", "$dst\lib" | Out-Null
 Copy-Item "$bld\bin\*.dll" "$dst\bin\"
 # our OpenCL build crashes in the Adreno compiler (CB.dll) at backend init; the installed one is unused on HTP0 runs
 Copy-Item "$repo\llama.cpp-hexagon\pkg-wos\bin\ggml-opencl.dll" "$dst\bin\" -Force
-foreach ($e in 'llama-cli.exe', 'llama-bench.exe', 'llama-completion.exe', 'test-backend-ops.exe') {
+foreach ($e in 'llama-cli.exe', 'llama-bench.exe', 'llama-completion.exe', 'llama-perplexity.exe', 'test-backend-ops.exe') {
     if (Test-Path "$bld\bin\$e") { Copy-Item "$bld\bin\$e" "$dst\bin\" }
 }
 $so = "$bld\ggml\src\ggml-hexagon\htp-v81-prefix\src\htp-v81-build\libggml-htp-v81.so"

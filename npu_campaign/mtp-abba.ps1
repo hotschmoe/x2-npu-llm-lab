@@ -1,5 +1,5 @@
 # Interleaved untraced speed comparison of MTP-speedup variants (ABBA / rotated order).
-# -Variants: semicolon list of name=pkgdir|spec|draftmax|ExtraEnv  (ExtraEnv uses , between NAME=VAL pairs)
+# -Variants: semicolon list of name=pkgdir|spec|draftmax|ExtraEnv[|pmin]  (ExtraEnv uses , between NAME=VAL pairs)
 # e.g. "base=npu_campaign\pkg-mtp-base|mtp|1|;fc=npu_campaign\pkg-mtp-fc|mtp|1|LLAMA_MTP_FUSED_CATCHUP=1"
 param(
     [Parameter(Mandatory = $true)][string]$Prefix,
@@ -14,8 +14,10 @@ $dir = Join-Path $PSScriptRoot 'mtp-speed'
 $vs = @()
 foreach ($v in ($Variants -split ';' | Where-Object { $_ })) {
     $name, $rest = $v.Split('=', 2)
-    $pkg, $spec, $dmax, $env = $rest.Split('|')
-    $vs += [pscustomobject]@{ Name = $name; Pkg = $pkg; Spec = $spec; DraftMax = [int]$dmax; Env = ($env -replace ',', ';') }
+    $parts = $rest.Split('|')
+    $pkg, $spec, $dmax, $env = $parts[0..3]
+    $pmin = if ($parts.Count -gt 4 -and $parts[4]) { [double]$parts[4] } else { -1 }
+    $vs += [pscustomobject]@{ Name = $name; Pkg = $pkg; Spec = $spec; DraftMax = [int]$dmax; Env = ($env -replace ',', ';'); PMin = $pmin }
 }
 $order = @()
 for ($r = 0; $r -lt $Rounds; $r++) {
@@ -27,7 +29,7 @@ $i = 0
 foreach ($v in $order) {
     $i++
     $label = "$Prefix-$($v.Name)-$i"
-    & $run -Label $label -Pkg $v.Pkg -Spec $v.Spec -DraftMax $v.DraftMax -Tokens $Tokens -Prompt $Prompt -ExtraEnv $v.Env | Out-Null
+    & $run -Label $label -Pkg $v.Pkg -Spec $v.Spec -DraftMax $v.DraftMax -PMin $v.PMin -Tokens $Tokens -Prompt $Prompt -ExtraEnv $v.Env | Out-Null
     $log = Get-Content (Join-Path $dir "$label.detail.log") -Raw
     $m = [regex]::Match($log, '(?<!prompt )eval time =\s+([\d.]+) ms /\s+(\d+) tokens[^\n]*?([\d.]+) tokens per second')
     $a = [regex]::Match($log, 'draft acceptance = ([\d.]+) \(\s*(\d+) accepted /\s*(\d+) generated')

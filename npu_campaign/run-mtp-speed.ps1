@@ -48,8 +48,13 @@ $env:GGML_HEXAGON_GDN_SELECT = "$GdnSelect"
 $env:GGML_HEXAGON_ROUTER_HVX = '1'
 $env:LLAMA_MTP_PROFILE = if ($MtpProfile) { '1' } else { '0' }
 $env:LLAMA_MTP_KV_ONLY = '0'
+# also clear every campaign knob so a caller that dot-sources/&-invokes this script repeatedly in one process
+# does not leak ExtraEnv settings into the next run
 foreach ($v in @('GGML_HEXAGON_ALLOC_FILL', 'GGML_HEXAGON_NHVX', 'LLAMA_FUSE_MTP_VERIFY', 'LLAMA_TENSOR_TRACE_FILE', 'LLAMA_TENSOR_TRACE_FILTER',
-                 'LLAMA_RETAIN_TRACE_FILE', 'LLAMA_RETAIN_TRACE_FILTER', 'LLAMA_RECURRENT_SNAPSHOT_LAYER')) {
+                 'LLAMA_RETAIN_TRACE_FILE', 'LLAMA_RETAIN_TRACE_FILTER', 'LLAMA_RECURRENT_SNAPSHOT_LAYER',
+                 'LLAMA_MTP_FUSED_CATCHUP', 'LLAMA_MTP_DRAFT_VOCAB', 'LLAMA_MTP_PAD_ROWS', 'LLAMA_MTP_PMIN_NEXT', 'LLAMA_DECODE_TIMING',
+                 'GGML_HEXAGON_OPPOLL', 'GGML_HEXAGON_TAIL_T_MASK', 'GGML_HEXAGON_REPLAY_SLOTS',
+                 'GGML_HEXAGON_TIME_BATCH', 'GGML_HEXAGON_TIME_GET')) {
     Remove-Item "Env:$v" -ErrorAction SilentlyContinue
 }
 $env:LLAMA_LOGITS_TRACE = if ($LogitsTrace) { '1' } else { '0' }
