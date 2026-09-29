@@ -6,7 +6,8 @@ param(
     [string]$PP = '512',
     [int]$UB = 512,
     [int]$Reps = 3,
-    [string]$Tag = 'ab'
+    [string]$Tag = 'ab',
+    [string]$Model = ''
 )
 $ErrorActionPreference = 'Stop'
 $Variants = @($Variants | ForEach-Object { $_ -split "," } | Where-Object { $_ })
@@ -21,6 +22,7 @@ for ($r = 1; $r -le $Rounds; $r++) {
         $dir = if ($vname -eq 'installed') { '' } else { "npu_campaign\prefill-cand-$vname" }
         $bin = if ($pkg) { "llama.cpp-hexagon\$pkg\bin" } else { '' }
         $argv = @('-NoProfile', '-File', "$here\run-prefill-bench.ps1", '-Label', $label, '-PP', $PP, '-UB', $UB, '-Reps', $Reps)
+        if ($Model) { $argv += @('-Model', $Model) }
         if ($dir) { $argv += @('-LibDir', $dir) }
         if ($bin) { $argv += @('-BinDir', $bin) }
         & powershell @argv | Out-Null

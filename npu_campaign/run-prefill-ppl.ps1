@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Label,
     [string]$LibDir = '',
     [string]$BinDir = '',
+    [string]$Model = 'models\gguf\qwen36-35b-a3b-q4_0\Qwen_Qwen3.6-35B-A3B-Q4_0.gguf',
     [int]$Ctx = 512,
     [int]$Chunks = 4,
     [string]$Text = 'npu_campaign\ppl_text.txt'
@@ -15,7 +16,7 @@ $lib = if ($LibDir) { (Resolve-Path (Join-Path $repoRoot $LibDir)).Path } else {
 $env:ADSP_LIBRARY_PATH = "$lib;"
 $binDirResolved = if ($BinDir) { (Resolve-Path (Join-Path $repoRoot $BinDir)).Path } else { "$repoRoot\llama.cpp-hexagon\pkg-wos\bin" }
 $exe = "$binDirResolved\llama-perplexity.exe"
-$model = "$repoRoot\models\gguf\qwen36-35b-a3b-q4_0\Qwen_Qwen3.6-35B-A3B-Q4_0.gguf"
+$model = "$repoRoot\$Model"
 $a = "-m `"$model`" -f `"$repoRoot\$Text`" -c $Ctx -b $Ctx -ub $Ctx --chunks $Chunks -ngl 99 --device HTP0 -fit off"
 $out = "$PSScriptRoot\ppl-$Label"
 . (Join-Path $PSScriptRoot "npu-lock.ps1"); Enter-NpuLock "run-prefill-ppl.ps1"

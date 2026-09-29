@@ -21,7 +21,11 @@ What moved the numbers, in order of value (all bit-identical output unless noted
 5. Prefill expert-combine fusion (MUL + 7 ADDs -> one multi-threaded ADD_NW; needed an allocator-aliasing fix) (+5%).
 6. Elementwise flatten (`patch_unary_flatten.py`, DSP-side, GGML_HEXAGON_UNARY_FLATTEN): contiguous F32 unary ops with tiny rows
    (SIGMOID [1,32,T], SCALE/SILU [128,..], SOFTPLUS [32,T]) are presented as 1024-wide rows; +1.2% (758 vs 749), PPL identical. Installed.
-7. Free options: `GGML_HEXAGON_ROUTER_HVX=0` router on HMX (+9.7%, PPL +0.26%, opt-in; upstream's own default), `GGML_HEXAGON_OPPOLL=1`
+7. Column-chunked pipeline (`patch_mmid_nchunk.py`): the pipeline returned 'not applicable' whenever the double-buffered fp16 tile
+   n x k x 2 did not fit VTCM (Gemma 4: fused gate_up 1408x2816, down 2816x704), so Gemma ran the stock serial path. Items are now
+   (expert, weight, n-chunk); shapes that fit (Qwen) keep one chunk, bit-identical. Gemma 4 26B-A4B QAT pp1024/ub1024: 719.6 -> 874.3 t/s
+   (+21.5%), greedy output identical to the original skel across 6 prompt sizes (PPL is meaningless for this instruct model: 1e29 in both).
+8. Free options: `GGML_HEXAGON_ROUTER_HVX=0` router on HMX (+9.7%, PPL +0.26%, opt-in; upstream's own default), `GGML_HEXAGON_OPPOLL=1`
    host spin-wait (+1.9%, one busy host core), `llama-bench --prio 2` (+0.9%).
 
 Negative or neutral (do not retry without a new idea): weight DMA sliced over per-thread queues, one fused dispatch per item (neutral
