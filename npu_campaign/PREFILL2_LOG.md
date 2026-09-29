@@ -49,3 +49,21 @@ The decode agent's `MOE+TOPK` (SOFT_MAX+ARGSORT+GET_ROWS+SUM_ROWS+CLAMP+DIV in o
 over the worker threads, per-thread scratch) and n_exp 128 (Gemma 4). Host matcher `try_fuse_moe_topk`, DSP `moe_topk_worker`
 (argsort-ops.c). Result: PPL 12.1307 exactly (bit-identical), 0.83 s/pass vs 0.86-0.88 (ub512 PPL run). `PF_TOPK_SELECT=1` (8-round max-select instead of
 the 8-vector bitonic sort, writes only the first 8 indices) built as `topksel`; PPL/A-B pending.
+
+## 2026-09-29 10:30  4. Lesson: generalising the router refine made it fire on ssm_alpha/ssm_beta
+`rrpair`, `rr_0` (all my probes/rr off) gave PPL 12.1645 instead of 12.1307 while `base` (12.1307) and `topk`/`topksel` builds (12.1307) were fine.
+Bisect by build order: the only change between `topksel` and `rrpair` that can touch the HVX-router run is the generalised
+`router_refine_applicable` (K%32, N%32<=256): the HMX matmuls ssm_alpha/ssm_beta (F32 weights, N=32, no bias) matched and their outputs were
+overwritten by "exact" recomputes of half the entries. Restricted to N in {128, 256}. (This is exactly the failure mode the PPL gate is for:
+always gate the FIRST build after any 'harmless' generalisation.)
+Also: `topksel` (8-round max-select instead of the bitonic sort, host MOE+TOPK fusion) = PPL 12.1307 exactly.
+
+## 2026-09-29 11:20  5. Candidates built, waiting for NPU slots (queue depth ~8 runs, decode2 holds the NPU for long stretches)
+- `fix1`: router refine (exact tree, N in {128,256}), balanced gather/scatter (`PF_RR=3`), REPEAT plane copy, multi-row MOE+TOPK: PPL 12.1307 (bit-exact
+  with HVX router, ROUTER_HVX=1). `rr_0`/`rrpair` (12.1645) were the accidental refine on ssm_alpha/beta (see 4).
+- `comb1` = fix1 + `PF_TOPK_SELECT=1` + Gemma expert-scale fold into ADD+NW (host `try_fuse_moe_wsum_prefill`, DSP `add_nw_prefill_worker` has_scale) +
+  small-M env knobs (`GGML_HEXAGON_ID_HVX_MAX_T`, `GGML_HEXAGON_HMX_MIN_ROWS`): PPL + A/B chain queued (chain-comb1.ps1, ab-multi.ps1).
+- `dmag1`: DMA-staged expert activation gather (rows fetched by the DMA engine into VTCM; HVX converts from VTCM; FIFO discipline documented in the
+  code: staged rows are pushed right behind the first item's weights and popped with them). Hypothesis: A_PREP is DDR-latency bound (45 ns per 32-col
+  block pair = 94 cycles vs ~6 cycles from VTCM); the gather-x2 probe says the gather is worth 53 ms/pass on the critical path.
+- `sp1`: vectorised softplus (PPL 12.1408, +1.2% expected; OFF by default via PF_SOFTPLUS_VEC).
