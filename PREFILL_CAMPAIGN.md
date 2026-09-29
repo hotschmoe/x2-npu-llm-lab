@@ -197,6 +197,16 @@ Ranked next steps:
 5. Harness question: prefill data says the value is in the DSP kernel library, host gaps are ~0.5 ms/1400 ms.
    Zig host over the existing skel is the natural first step; ZML backend is a compiler project.
 
+## Main build: pipelined MoE kernel enabled by default (2026-09-29)
+
+- `GGML_HEXAGON_MMID_PIPE` default flipped to ON in htp/CMakeLists.txt (Hexagon repo). Default DSP build
+  (`build-prefill-htp.cmd` with `PF_BLD=build-prefill-main`, no extra flags) yields SHA 640AA38D... = pipe9, bit-for-bit.
+- Installed into `llama.cpp-hexagon/pkg-wos/lib` via `npu_campaign/install-prefill-main.ps1` (backup of the previous
+  skel D2D98EDE / cat 5CB7F7EF in `npu_campaign/backup-prefill-pipe-prechange`; new skel 640AA38D, cat BB78A1E3).
+- Verified on the installed path: pp1024 (ub1024) 651.8 t/s; decode 128 tok = 28.27 tok/s (unchanged).
+- Rollback: copy the two files from the backup dir back into pkg-wos/lib.
+- `npu_campaign/npu-lock.ps1` is a cross-agent NPU mutex now used by run-prefill-bench/ppl/decode scripts.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.

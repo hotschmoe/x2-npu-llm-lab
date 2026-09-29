@@ -25,6 +25,7 @@ $out = "$PSScriptRoot\prefill-$Label"
 $ngl = if ($Device -eq 'none') { 0 } else { 99 }
 $a = "-m `"$repoRoot\$Model`" -p $PP -n 0 -ub $UB -b 2048 -r $Reps -ngl $ngl --device $Device -o md $Extra"
 "ARGS=$a" | Out-File "$out.log" -Encoding utf8
-$run = Start-Process -FilePath $exe -ArgumentList $a -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput "$out.log" -RedirectStandardError "$out.log.err"
+. (Join-Path $PSScriptRoot "npu-lock.ps1"); Enter-NpuLock "run-prefill-bench.ps1"
+try { $run = Start-Process -FilePath $exe -ArgumentList $a -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput "$out.log" -RedirectStandardError "$out.log.err" } finally { Exit-NpuLock }
 "EXIT=$($run.ExitCode)"
 Get-Content "$out.log"

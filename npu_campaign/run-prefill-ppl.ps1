@@ -16,6 +16,7 @@ $exe = "$repoRoot\llama.cpp-hexagon\pkg-wos\bin\llama-perplexity.exe"
 $model = "$repoRoot\models\gguf\qwen36-35b-a3b-q4_0\Qwen_Qwen3.6-35B-A3B-Q4_0.gguf"
 $a = "-m `"$model`" -f `"$repoRoot\$Text`" -c $Ctx -b $Ctx -ub $Ctx --chunks $Chunks -ngl 99 --device HTP0 -fit off"
 $out = "$PSScriptRoot\ppl-$Label"
-$run = Start-Process -FilePath $exe -ArgumentList $a -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput "$out.log" -RedirectStandardError "$out.log.err"
+. (Join-Path $PSScriptRoot "npu-lock.ps1"); Enter-NpuLock "run-prefill-ppl.ps1"
+try { $run = Start-Process -FilePath $exe -ArgumentList $a -WindowStyle Hidden -PassThru -Wait -RedirectStandardOutput "$out.log" -RedirectStandardError "$out.log.err" } finally { Exit-NpuLock }
 "EXIT=$($run.ExitCode)"
 Select-String -Path "$out.log.err","$out.log" -Pattern 'PPL|Final estimate|perplexity:' | ForEach-Object { $_.Line } | Select-Object -Last 8
