@@ -257,6 +257,19 @@ Verified on the default installed path: PPL 12.1307 (identical), pp512 665 / pp1
 Edge sweeps (prompt sizes 5..1025 words, fusions on vs off, greedy text identical) passed for both fusions.
 Cumulative (installed default, ub1024, pp1024): 454 (session start, ub1024) -> 749 t/s (+65%); at ub512 pp512: ~385 -> ~665.
 
+## Experiments 12-13 (negative/neutral) and a calibration of the PPL gate
+
+- Q4_0 LUT dequant retest after the pipeline made HVX the limiter (HVX 86% active, dequant 62% of HVX thread-time):
+  lut2 (vlut16 nibble decode, bit-identical) 751.4 vs 746.1 (+0.7%, noise); lut3 (+ native IEEE half multiply instead of
+  qf16 mul+convert; PPL 12.1322, not bit-identical) 748.6 vs 747.7. No gain -> reverted. Instruction count is not the limiter;
+  VTCM bandwidth/contention between HVX dequant writes, HMX weight reads and DMA is the likely one.
+- ub scaling on the final build (pp4096): 729 / 713 / 716 t/s at ub 1024 / 2048 / 4096: flat.
+- Gemma 4 26B-A4B QAT Q4_0: pp1024 714 t/s (see MODEL_QUANT_HARNESS_REVIEW.md).
+- CPU-backend reference PPL on the same 4x512 text: 12.2015. NPU variants: HVX-router 12.1307, HMX-router 12.1627, router refine
+  12.1703-12.1769. So NPU-vs-CPU numeric spread is ~0.07 PPL (0.6%); differences of 0.03 between NPU router variants are inside
+  that spread. The bit-identical-PPL gate is the right check for pure-performance changes (fusions, scheduling), but it is stricter
+  than the true quality target, so an intentionally approximate change (router on HMX) should be judged against CPU, not against HVX.
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
