@@ -104,3 +104,9 @@ not the copy loop), final skel (dmag2 + multi-row MOE+TOPK for 128 experts + exp
 router still HVX. Greedy equality on Gemma (24 tokens): REPEAT-only 33/257/1025 words identical; edge check Qwen (topk fusion on vs off, 40 and 520 words) identical.
 Gates on the final skel (dmag2, host 72AEA5A1): PPL 4x512 dmag1 12.1307 (dmag2 differs only by a guard), 16 chunks 13.3331 (exact); HMX router+refine 12.1611.
 Not measured (no slots): Gemma with HMX router (refine for 128 experts is untested end to end), small-M thresholds (`GGML_HEXAGON_ID_HVX_MAX_T`), DMA scatter.
+
+## 2026-09-29 15:18  9. Wrap-up
+Gemma greedy equality of the final skel (dmag2 + host 72AEA5A1, all fusions) vs base skel with the new fusions masked off: 257 words identical (33/1025 not run for lack of
+slots). Small-M threshold sweep (`GGML_HEXAGON_ID_HVX_MAX_T`, h3) was killed unmeasured. `git merge npu-htp-decode` into prefill2: already up to date (npu-htp-decode = ee4381b).
+Branch prefill2 tip 2bd9d77. Package for the coordinator: `npu_campaign/pkg-prefill2-final` (+ `install-prefill2.ps1`): host ggml-hexagon.dll 72AEA5A1, skel A3041BB9, catalog 932AAA72.
+To get the +11% on Qwen (and whatever it gives on Gemma) run with `GGML_HEXAGON_ROUTER_HVX=0` (the run scripts currently force 1).
