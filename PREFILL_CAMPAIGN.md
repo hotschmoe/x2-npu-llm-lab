@@ -171,9 +171,19 @@ alone was +/-0 vs pipe2 in the interleaved A/B; `patch_mmid_fuse.py` re-applies 
   time/pass 4.37 s -> 3.64 s.
 - Best config so far: pipe7, ub1024, ~614 t/s (base at ub1024: 454, +35%); with ROUTER_HVX=0 (opt-in) add ~+10%.
 
+## Experiments 7-8: dequant LUT (negative) and exact-range gather
+
+- pipe8: Q4_0 tile dequant via vlut16 (`patch_q4lut.py`, structure copied from the MXFP4 kernel): PPL bit-identical,
+  pp1024/ub1024 621.3 vs pipe7 622.8 - **no gain**; HVX dequant is no longer on the critical path. Reverted.
+- pipe9: `patch_mmid_gather.py` - the stock gathered-activation worker pads each thread's row count to 32 and
+  converts every valid row from its start onward, so at ~16 rows/expert thread t converts (16-2t) rows (~4.5x
+  redundant conversion of F32 rows read from DDR). Exact-range worker converts each row once and zero-fills padding.
+  pp1024/ub1024 pipe7 ~623 -> pipe9 646.5 (+4%); PPL 12.1307 identical (ctx512).
+
 ## Log
 
 - 2026-09-28: baseline + per-op profile above.
 - 2026-09-28: Experiment 1 (pipelined MoE expert kernel): pp512 385 -> 485 (+26%), pp128 +53%, PPL identical.
 - 2026-09-28: pipe2/3/4/5: fused dispatch, l2fetch (no gain, reverted), ddr_spad 2 MB (+13%). pp512 ~385 -> ~551.
 - 2026-09-28: pipe6 (fused dispatch, neutral), pipe7 (row-chunked hot experts): pp2048 ub1024 614 t/s, PPL identical.
+- 2026-09-28: pipe8 Q4_0 LUT dequant no gain (reverted); pipe9 exact-range gather +4% (646 t/s pp1024 ub1024).
