@@ -1,0 +1,32 @@
+# Prefill campaign (Hexagon HTP0, Qwen3.6-35B-A3B Q4_0)
+
+Started 2026-09-28. Separate from the decode/correctness campaign in `npu_campaign/STATUS.md`.
+Harness: `npu_campaign/run-prefill-bench.ps1` (llama-bench, production env, no diagnostic HMX builds),
+per-op summary: `npu_campaign/prefill_prof_sum.py` on a `PF_PROFILE=1 ... -Extra:--verbose` log.
+
+## Baseline (installed pkg-wos, build 08618ff, HTP0, ub512, 1 rep)
+
+| test | t/s |
+| --- | ---: |
+| pp16 | 71 |
+| pp64 | 158 |
+| pp128 | 244 |
+| pp512 | 381 (345 with profiling on) |
+
+Context: Llama-3.2-1B Q4_0 on the same stack does pp512 = 5081. specula CPU/OpenCL on this 35B: ~190/~210.
+Qualcomm QAIRT Qwen3-4B w4a16: pp 2229 (dense, whole-graph, weight-resident; not the same model).
+The "awful" prefill numbers in the decode campaign STATUS come from diagnostic HMX-correctness builds
+(217 s for 13 tokens) and 4-17 token prompts, not from the production path.
+
+## Where pp512 time goes (one 2024-op batch = ~1.4 s)
+
+| op | share |
+| --- | ---: |
+| MUL_MAT_ID_NX (expert gate+up, hmx-tiled) | 36% |
+| MUL_MAT_ID (expert down, hmx-tiled) | 24% |
+| MUL_MAT dense (qkv/ssm_out/gate/attn) | ~7% |
+| MUL_MAT ffn_gate_inp router (hvx-tiled, N=256) | 6% |
+| GDN+CPY, ADD, CONCAT, MUL, SSM_CONV, SILU, ... | ~25% combined |
+| flash attn | 0.6% |
+
+Ef

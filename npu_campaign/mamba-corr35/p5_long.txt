@@ -1,0 +1,122 @@
+er
+16 tokens) where per-expert setup/dequant cannot amortize, and host<->DSP batch boundaries. Next: per-op
+latency table at pp16/pp64 and per-stage (DMA wait / dequant / HMX / scatter) traces inside the expert loop.
+
+## ub sweep (llama-bench, 1 rep)
+
+| ub | pp512 | pp1024 | pp2048 |
+| --- | ---: | ---: | ---: |
+| 512 | 381 | - | - |
+| 1024 | - | 460 | 456 |
+| 2048 | - | 436 | 472 |
+
+Bigger ub recovers ~24% then flattens near ~470: per-expert weight-dequant amortization is not the whole story.
+
+## Stage trace inside expert ops (GGML_HEXAGON_PROFILE=3, `prefill_stage_sum.py`, measured batch)
+
+Trace timestamps are 32-bit and wrap; script unwraps per thread and aligns to op clock. Per-op averages,
+"sum over threads" against 8 HVX threads (800% = fully saturated):
+
+| op (wall/op) | stage | thread-time/op | notes |
+| --- | --- | ---: | --- |
+| MUL_MAT_ID down (8.3 ms) | HVX_W_DEQUANT | 6.9 ms | |
+| | HVX_A_PREP | 4.7 ms | activation gather+F32->F16 |
+| | HVX_O_PROC | 3.8 ms | scatter |
+| | INIT (thread 0, serial) | 3.7 ms = 44% of wall | per-expert setup |
+| | DMA wait | 1.0 ms | |
+| | **HMX_COMP** | **0.9 ms = 11% of wall** | |
+| MUL_MAT_ID_NX gate+up (12.7 ms) | HVX_A_PREP | 25.6 ms | 2400 events/op for 305 chunks: ~8x redundant |
+| | HVX_W_DEQUANT | 13.6 ms | |
+| | INIT | 2.2 ms (17%) | |
+| | DMA wait | 2.1 ms (17%) | |
+| | HVX_O_PROC | 2.4 ms | |
+| | **HMX_COMP** | **1.05 ms = 8% of wall** | |
+
+Reading: HMX is idle ~90% of the expert ops. Phases (INIT, A_PREP, W_DEQUANT, HMX, O_PROC, DMA wait) run
+back to back with thread barriers, so wall ~= sum of phase walls; HVX threads are only ~25-40% busy.
+The win is removing/overlapping phases, not a faster multiplier:
+- hoist activation F32->F16 conversion out of the per-expert loop (convert the 512x2048 rows once, 2 MB;
+  experts then only gather F16 rows). Targets A_PREP (biggest NX phase).
+- kill serial per-expert INIT (thread 0): precompute chunk plans/row maps once per op.
+- pipeline dequant(i+1) || HMX(i) || scatter(i-1), prefetch next expert's weight DMA across expert boundary.
+
+## Why experts are slow (matmul-ops.c `hmx_mm_id_2d_f32`)
+
+- ~16 rows/expert at ub512 (512 x 8 / 256), padded to 32; each weight tile is dequantized (Q4_0 -> fp16, HVX)
+  and used for only ~16 rows, vs 512 rows for dense projections.
+- The per-chunk loop is fully serial: dequant (threaded HVX) -> wait DMA -> HMX push+pop (blocking) ->
+  scatter output. `pipeline=false` for the id path; dense path overlaps HMX with dequant.
+- Activation gather + F32->F16 convert is redone per expert.
+
+## Goals
+
+- G1: pp512 >= 600 t/s, pp2048 >= 800 t/s (from 381) without changing numerics of the production path.
+- G2: expert matmul >= 4 TFLOPS.
+- G3: learn best shapes: ub size, expert row batching, fused gate+up+SwiGLU+down, router on HMX, W4A8 vs dequant.
+- Stretch: >= 1000 t/s pp512 (beats CPU 5x; approaches QAIRT-class).
+
+## Experiments (ordered by expected value / cost)
+
+1. ub sweep (512/1024/2048) - amortizes per-expert dequant. No code. Running.
+2. Software-pipeline the MoE id path (dequant chunk i+1 on HVX while HMX runs chunk i; double-buffer outputs).
+3. Fuse gate+up (already NX) with SwiGLU and feed down directly, skip DDR round trip of the 512x8x512 intermediate.
+4. Router `ffn_gate_inp` (2048x256) onto HMX (6% for free).
+5. Sort/bucket tokens so hot experts get full 32-row tiles; skip padding waste for tiny experts (HVX for cnt<=~4).
+6. Prefetch next expert's weights across expert boundary (DMA today restarts per expert).
+7. W4A8 HMX integer MAC (specula: int4xu8 confirmed on v81) to remove dequant entirely.
+8. Pre-dequantized fp8/fp16 weight cache in spare memory for hot experts (bandwidth vs dequant tradeoff).
+9. Small stuff: GDN/CONCAT/ADD/MUL fusion (~25%): CONCAT of conv state, per-layer ADD residuals.
+10. Other runtimes/formats as controls: MXFP4 GGUF on HTP, OpenCL, QAIRT for a fixed expert-shaped GEMM.
+
+## Log
+
+- 2026-09-28: baseline + per-op profile above.
+# NPU MoE: 20 tok/s
+
+Date: 2026-09-25
+
+Machine: ASUS Zenbook A16, Snapdragon X2 Elite Extreme, Hexagon v81, one NSP,
+8 MB VTCM. Nominal DRAM pin rate 228 GB/s. Measured NPU paths so far: copied
+QNN client buffers about 15 GB/s, `rpcmem` shared buffers about 28 GB/s.
+A DMA-engine memcpy is built and not yet loaded (`AEE_EUNABLETOLOAD` until the
+signed catalog is accepted after reboot).
+
+llama.cpp is the measuring instrument. The native NVFP4 runtime stays the
+serving path. A GGUF copy exists so the Hexagon backend can run; it is not a
+second resident copy of the production checkpoint.
+
+## Goal
+
+Run the Ornith-class 35B mixture-of-experts model, 4-bit, entirely on the NPU,
+at **20 tok/s or better** end to end on one warm decode stream.
+
+"Entirely on the NPU" means router, expert GEMVs, shared expert, attention or
+gated-delta, norms, and the output projection execute as Hexagon ops. Sampling
+may stay on the CPU. The draft that produces the extra accepted tokens runs on
+the NPU as well.
+
+The 4-bit formats the fetched Hexagon backend can execute are Q4_0, Q4_K,
+IQ4_NL, and MXFP4. There is no 3-bit op in that backend. A 3-bit model is a
+later kernel, not the first target.
+
+The model is Qwen3.6-35B-A3B, architecture `qwen35moe`: 40 layers, 30 gated
+delta-net plus 10 full attention, 256 experts, top-8, about 3B active. That is
+the architecture the Hexagon gated-delta and `MUL_MAT_ID` work was measured on,
+including on X2 Elite. First file is
+[bartowski/Qwen_Qwen3.6-35B-A3B-GGUF](https://huggingface.co/bartowski/Qwen_Qwen3.6-35B-A3B-GGUF)
+`Q4_0` (20.8 GB). `IQ4_NL` (20.8 GB) is the alternate. Both are in the Hexagon
+repack list. `Q4_K_M` (22.3 GB) and
+[ggml-org/Qwen3.6-35B-A3B-GGUF](https://huggingface.co/ggml-org/Qwen3.6-35B-A3B-GGUF)
+`Q4_K_M` (20.4 GB) are the quality check after Q4_0 runs. The draft head is the
+1.06 GB `MTP Q4_0` in the ggml-org repo, used with llama.cpp `draft-mtp` and a
+proposal length of 3. MXFP4_MOE (about 18.4–21 GB) is the smaller 4-bit to try
+once Q4_0 has a trace, because MXFP4 is also a native Hexagon type.
+
+Ornith-1.5-35B-A3B is the same `qwen35moe` graph. Its NVFP4 checkpoints,
+including the GGUF NVFP4 and the MTP NVFP4, are the Adreno path. Upstream
+Hexagon does not execute NVFP4. An Ornith Q4_K_M exists and would run, and it
+does not get to 20 tok/s any sooner than Qwen3.6.
+
+Gemma 4 has no 30B-A4B. The MoE in this size is
+[gemma-4-26B-A4B](https://huggingface.co/google/gemma-4-26B-A4B-it), about 3.8B
+active. The QAT `Q4_0` file is about 14.4 GB and is a supported type. It is t
