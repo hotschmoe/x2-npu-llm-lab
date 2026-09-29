@@ -1,0 +1,13 @@
+﻿KLD vs CPU (CPU PPL 13.5641): chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              p RMS            Same top p | Mean PPL(Q)                   :  13.514553    1.298551 | Mean    KLD:   0.008728    0.000588 | Same top p: 96.176  0.601 %
+pp128=422.30 3.66  pp512=815.80 2.30  pp1024=969.61 0.51  tg64=27.45 0.23
+greedy vs CPU:
+p1_colors: IDENTICAL
+p2_code: IDENTICAL
+p3_math: IDENTICAL
+p4_med: DIVERGE at char 9 of 105/109
+   cpu: 'ﬁciency: 36%+24% = 60% of time in MUL_MAT_ID_NX and MUL_MAT_ID (exper'
+   npu: 'ﬁciency: 55% (compared to 90%+ for decode). The gap is mostly MUL_MAT'
+p5_long: DIVERGE at char 6 of 179/129
+   cpu: 'bd\nif the Hexagon backend can run it.\n\n## Baseline\n\nThe baseline i'
+   npu: 'bd\nif we ever get to it.\n\n## Baseline\n\nThe GGUF Q4_0 file is loade'
+3/5 identical
