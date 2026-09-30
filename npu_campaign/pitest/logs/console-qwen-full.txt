@@ -1,0 +1,35 @@
+server up
+create_file r1: PASS calls=1 err=0 wall=12s prefill=1645t/2598ms gen=134t/4881ms 
+read_answer r1: PASS calls=1 err=0 wall=6s prefill=1091t/1805ms gen=106t/3843ms 
+shell_cmd r1: PASS calls=1 err=0 wall=6s prefill=1051t/1741ms gen=96t/3468ms 
+py_func_test r1: PASS calls=3 err=0 wall=66s prefill=1254t/2739ms gen=1656t/62407ms 
+edit_file r1: PASS calls=4 err=0 wall=19s prefill=1130t/2549ms gen=413t/15267ms 
+find_count r1: PASS calls=3 err=0 wall=14s prefill=1036t/1981ms gen=313t/11597ms 
+parallel_read r1: PASS calls=5 err=0 wall=15s prefill=1028t/1954ms gen=326t/12118ms 
+long_result r1: PASS calls=2 err=0 wall=15s prefill=6056t/7995ms gen=179t/6752ms 
+no_tool r1: PASS calls=0 err=0 wall=6s prefill=936t/1413ms gen=120t/4424ms 
+fix_bug r1: PASS calls=5 err=1 wall=27s prefill=1464t/2675ms gen=617t/23330ms 
+rename_multi r1: PASS calls=16 err=2 wall=69s prefill=1569t/4030ms gen=1684t/63885ms 
+create_file r2: PASS calls=1 err=0 wall=8s prefill=979t/1696ms gen=143t/5237ms 
+read_answer r2: PASS calls=1 err=0 wall=7s prefill=994t/1685ms gen=130t/4761ms 
+shell_cmd r2: PASS calls=1 err=0 wall=6s prefill=955t/1602ms gen=96t/3495ms 
+py_func_test r2: PASS calls=6 err=1 wall=73s prefill=1774t/3837ms gen=1801t/68428ms 
+edit_file r2: PASS calls=4 err=0 wall=17s prefill=1129t/2508ms gen=381t/14160ms 
+find_count r2: PASS calls=2 err=0 wall=12s prefill=1009t/1877ms gen=248t/9185ms 
+parallel_read r2: PASS calls=5 err=0 wall=14s prefill=1027t/1918ms gen=303t/11259ms 
+long_result r2: PASS calls=1 err=0 wall=15s prefill=5994t/7734ms gen=169t/6514ms 
+no_tool r2: PASS calls=0 err=0 wall=6s prefill=936t/1412ms gen=110t/4115ms 
+fix_bug r2: PASS calls=5 err=1 wall=30s prefill=1460t/2654ms gen=705t/27139ms 
+rename_multi r2: PASS calls=16 err=1 wall=76s prefill=1483t/3726ms gen=1848t/71639ms 
+create_file r3: PASS calls=1 err=0 wall=8s prefill=977t/1695ms gen=144t/5370ms 
+read_answer r3: FAIL calls=2 err=0 wall=9s prefill=1016t/1917ms gen=168t/6277ms answer='The codename is **BLUENENN** and the launch deadline is **October 17, 2026**.' want BLUENENN 2026-10-17
+shell_cmd r3: PASS calls=1 err=0 wall=5s prefill=954t/1619ms gen=83t/3061ms 
+py_func_test r3: PASS calls=5 err=1 wall=89s prefill=1293t/3093ms gen=2193t/85298ms 
+edit_file r3: PASS calls=4 err=0 wall=17s prefill=1128t/2546ms gen=358t/13568ms 
+find_count r3: PASS calls=3 err=0 wall=13s prefill=1013t/1910ms gen=277t/10491ms 
+parallel_read r3: PASS calls=5 err=0 wall=20s prefill=1055t/2005ms gen=450t/17149ms 
+long_result r3: PASS calls=2 err=0 wall=15s prefill=6056t/8025ms gen=173t/6604ms 
+no_tool r3: PASS calls=0 err=0 wall=7s prefill=936t/1419ms gen=124t/4641ms 
+fix_bug r3: PASS calls=5 err=1 wall=34s prefill=1489t/2750ms gen=806t/31008ms 
+rename_multi r3: PASS calls=16 err=2 wall=81s prefill=1580t/4149ms gen=1963t/76002ms 
+done -> C:\Users\hotschmoe\Documents\llm_inference\npu_campaign\pitest\results-qwen-full.md

@@ -1,0 +1,6 @@
+== npu_campaign/pkg-decode2-base
+[short] prompt_tokens=23 t=2.3s content='ie resgege res اiz doie res do doper resaskagegepertheraurom *ourieper do haveper doperнаizangrom doubiegeububromassub haverom--二年ourass auteage으로�
+[long] prompt_tokens=86 t=2.3s content='ububage this thisromgeagerom res اper interageubper res kickedieie resccase have resccase-- thisromubageiv sppcc do ex--age wh res res res----assie have-- have
+== llama.cpp-hexagon/pkg-prefill
+server died
+== npu_campaign/pkg-upstream-u1

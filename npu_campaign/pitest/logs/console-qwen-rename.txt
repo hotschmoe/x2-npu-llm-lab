@@ -1,0 +1,5 @@
+server up
+rename_multi r1: PASS calls=13 err=1 wall=47s prefill=2071t/4091ms gen=1110t/41988ms 
+rename_multi r2: PASS calls=12 err=0 wall=42s prefill=1466t/3059ms gen=995t/37806ms 
+rename_multi r3: PASS calls=12 err=0 wall=42s prefill=1461t/2979ms gen=1003t/38139ms 
+done -> C:\Users\hotschmoe\Documents\llm_inference\npu_campaign\pitest\results-qwen-rename.md

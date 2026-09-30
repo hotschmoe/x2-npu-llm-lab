@@ -1,0 +1,29 @@
+server up
+create_file r1: PASS calls=1 err=0 wall=8s prefill=1645t/2620ms gen=132t/5052ms 
+read_answer r1: PASS calls=1 err=0 wall=6s prefill=1090t/1824ms gen=104t/3960ms 
+shell_cmd r1: PASS calls=1 err=0 wall=6s prefill=1050t/1759ms gen=89t/3358ms 
+py_func_test r1: PASS calls=3 err=0 wall=79s prefill=1317t/2897ms gen=1937t/76004ms 
+edit_file r1: PASS calls=3 err=0 wall=15s prefill=1066t/2227ms gen=311t/11998ms 
+find_count r1: PASS calls=3 err=0 wall=16s prefill=1059t/2183ms gen=334t/12922ms 
+parallel_read r1: PASS calls=5 err=0 wall=15s prefill=1030t/1957ms gen=325t/12597ms 
+long_result r1: PASS calls=1 err=0 wall=13s prefill=6038t/7808ms gen=110t/4274ms 
+no_tool r1: PASS calls=0 err=0 wall=5s prefill=938t/1411ms gen=93t/3575ms 
+create_file r2: PASS calls=1 err=0 wall=8s prefill=983t/1700ms gen=142t/5452ms 
+read_answer r2: PASS calls=1 err=0 wall=6s prefill=996t/1707ms gen=103t/3937ms 
+shell_cmd r2: PASS calls=1 err=0 wall=7s prefill=959t/1629ms gen=114t/4352ms 
+py_func_test r2: PASS calls=7 err=0 wall=97s prefill=1778t/4129ms gen=2339t/92465ms 
+edit_file r2: PASS calls=4 err=0 wall=17s prefill=1130t/2555ms gen=354t/13692ms 
+find_count r2: PASS calls=4 err=0 wall=15s prefill=1039t/2135ms gen=319t/12364ms 
+parallel_read r2: PASS calls=5 err=0 wall=15s prefill=1029t/1941ms gen=334t/12965ms 
+long_result r2: PASS calls=1 err=0 wall=13s prefill=5998t/7761ms gen=131t/5143ms 
+no_tool r2: PASS calls=0 err=0 wall=5s prefill=940t/1412ms gen=79t/3031ms 
+create_file r3: PASS calls=1 err=0 wall=8s prefill=985t/1683ms gen=142t/5455ms 
+read_answer r3: PASS calls=1 err=0 wall=7s prefill=997t/1707ms gen=133t/5069ms 
+shell_cmd r3: PASS calls=1 err=0 wall=6s prefill=958t/1626ms gen=97t/3667ms 
+py_func_test r3: PASS calls=4 err=0 wall=109s prefill=1285t/2916ms gen=2680t/105893ms 
+edit_file r3: PASS calls=4 err=0 wall=17s prefill=1129t/2601ms gen=359t/13620ms 
+find_count r3: PASS calls=3 err=0 wall=15s prefill=1017t/1983ms gen=306t/11852ms 
+parallel_read r3: PASS calls=5 err=0 wall=23s prefill=1057t/2076ms gen=500t/19846ms 
+long_result r3: PASS calls=1 err=0 wall=14s prefill=6039t/7882ms gen=146t/5735ms 
+no_tool r3: PASS calls=0 err=0 wall=5s prefill=939t/1430ms gen=84t/3119ms 
+done -> C:\Users\hotschmoe\documents\llm_inference\npu_campaign\pitest\results-qwen.md

@@ -1,0 +1,6 @@
+server up
+create_file r1: FAIL calls=0 err=0 wall=4s prefill=1359t/1869ms gen=31t/1321ms hello.txt=None
+read_answer r1: FAIL calls=0 err=0 wall=3s prefill=1026t/1383ms gen=36t/1530ms answer='*.age</h4>age appgeg dis Iif +</html> with2 ا</html> है</b> whang resac</b>� dis ex res<th>ubif<unused76></b>P</
+shell_cmd r1: FAIL calls=0 err=0 wall=6s prefill=1036t/1465ms gen=102t/4421ms answer='ickpp<unused17>age            --ith</h4>�ith�<unused17>�<unused58>��T            E</b> with{el  </html> restheri
+py_func_test r1: FAIL calls=0 err=0 wall=4s prefill=1127t/1645ms gen=51t/2191ms missing solution.py or test_solution.py
+edit_file r1: FAIL calls=0 err=0 wall=4s prefill=942t/1318ms gen=52t/2228ms config.ini='[client]\nhost = localhost\ntimeout = 30\nretries = 3\n\n[server]\nport = 8080\ntimeout = 30\nworkers = 4\n\

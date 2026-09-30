@@ -1,0 +1,37 @@
+server up
+create_file r1: PASS calls=2 err=0 wall=11s prefill=1723t/2558ms gen=205t/7519ms 
+read_answer r1: PASS calls=2 err=0 wall=15s prefill=1857t/2794ms gen=314t/11588ms 
+shell_cmd r1: FAIL calls=1 err=0 wall=18s prefill=1694t/2296ms gen=401t/14961ms answer='' want JPUBUYFW tool_calls=1
+py_func_test r1: PASS calls=3 err=0 wall=93s prefill=1906t/3055ms gen=2346t/88804ms 
+edit_file r1: PASS calls=3 err=0 wall=14s prefill=1847t/2995ms gen=292t/10702ms 
+find_count r1: PASS calls=4 err=0 wall=21s prefill=1845t/3089ms gen=469t/17116ms 
+parallel_read r1: PASS calls=5 err=0 wall=20s prefill=1808t/3264ms gen=447t/16354ms 
+long_result r1: PASS calls=2 err=0 wall=22s prefill=6400t/7643ms gen=368t/14000ms 
+no_tool r1: PASS calls=0 err=0 wall=8s prefill=1676t/2058ms gen=136t/5011ms 
+fix_bug r1: PASS calls=5 err=1 wall=39s prefill=2231t/3641ms gen=928t/34938ms 
+rename_multi r1: FAIL calls=21 err=3 wall=197s prefill=3523t/7325ms gen=4875t/188094ms HOTSCH~1\AppData\Local\Temp\pitest-rename_multi-54eivy8v\test_all.py", line 4, in <module>
+    assert report.report([1, 
+create_file r2: PASS calls=1 err=0 wall=7s prefill=1696t/2303ms gen=104t/3815ms 
+read_answer r2: PASS calls=2 err=0 wall=22s prefill=1859t/2765ms gen=499t/18625ms 
+shell_cmd r2: PASS calls=2 err=0 wall=18s prefill=1748t/2598ms gen=407t/15151ms 
+py_func_test r2: PASS calls=3 err=0 wall=85s prefill=1952t/3149ms gen=2170t/81689ms 
+edit_file r2: PASS calls=3 err=0 wall=21s prefill=1847t/2998ms gen=479t/17492ms 
+find_count r2: PASS calls=5 err=0 wall=25s prefill=1896t/3420ms gen=562t/20779ms 
+parallel_read r2: PASS calls=5 err=0 wall=19s prefill=1769t/2661ms gen=426t/15914ms 
+long_result r2: PASS calls=1 err=0 wall=19s prefill=6235t/7178ms gen=281t/10899ms 
+no_tool r2: PASS calls=0 err=0 wall=6s prefill=1675t/2051ms gen=94t/3473ms 
+fix_bug r2: PASS calls=5 err=0 wall=49s prefill=2259t/3600ms gen=1195t/45187ms 
+rename_multi r2: FAIL calls=19 err=3 wall=211s prefill=2519t/6089ms gen=5275t/203775ms HOTSCH~1\AppData\Local\Temp\pitest-rename_multi-3hlwfxr7\test_all.py", line 4, in <module>
+    assert report.report([1, 
+create_file r3: PASS calls=1 err=0 wall=7s prefill=1696t/2289ms gen=111t/4030ms 
+read_answer r3: FAIL calls=2 err=0 wall=17s prefill=1858t/2782ms gen=237t/8903ms answer='The codename is BLUENENN and the launch deadline is 2026‑10‑17.' want BLUENENN 2026-10-17
+shell_cmd r3: PASS calls=1 err=0 wall=18s prefill=1695t/2292ms gen=411t/15523ms 
+py_func_test r3: PASS calls=3 err=0 wall=79s prefill=1909t/3104ms gen=1948t/74984ms 
+edit_file r3: PASS calls=3 err=0 wall=30s prefill=1848t/3047ms gen=689t/26051ms 
+find_count r3: PASS calls=4 err=0 wall=16s prefill=1838t/3166ms gen=334t/12459ms 
+parallel_read r3: PASS calls=6 err=0 wall=20s prefill=2000t/3123ms gen=445t/16784ms 
+long_result r3: PASS calls=1 err=0 wall=23s prefill=6267t/7251ms gen=397t/15618ms 
+no_tool r3: PASS calls=0 err=0 wall=8s prefill=1677t/2070ms gen=135t/5067ms 
+fix_bug r3: PASS calls=5 err=0 wall=49s prefill=2259t/3627ms gen=1160t/44500ms 
+rename_multi r3: PASS calls=26 err=4 wall=299s prefill=2860t/7387ms gen=7347t/289585ms 
+done -> C:\Users\hotschmoe\documents\llm_inference\npu_campaign\pitest\results-nemotron.md

@@ -1,0 +1,5 @@
+server up
+rename_multi r1: PASS calls=18 err=2 wall=169s prefill=2408t/5791ms gen=4257t/162146ms 
+rename_multi r2: PASS calls=12 err=1 wall=106s prefill=2089t/4052ms gen=2650t/100346ms 
+rename_multi r3: PASS calls=14 err=1 wall=85s prefill=2242t/5094ms gen=2091t/78766ms 
+done -> C:\Users\hotschmoe\Documents\llm_inference\npu_campaign\pitest\results-nemotron-rename.md

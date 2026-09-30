@@ -1,0 +1,27 @@
+{
+  "providers": {
+    "local": {
+      "baseUrl": "http://127.0.0.1:8095/v1",
+      "api": "openai-completions",
+      "apiKey": "none",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsUsageInStreaming": true,
+        "maxTokensField": "max_tokens"
+      },
+      "models": [
+        {
+          "id": "local-model",
+          "name": "local llama-server model",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 16384,
+          "maxTokens": 4096
+        }
+      ]
+    }
+  }
+}

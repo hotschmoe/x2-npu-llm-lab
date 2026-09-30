@@ -1,0 +1,167 @@
+[
+ {
+  "case": "create_file",
+  "rep": 1,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "tools": [],
+  "max_parallel": 0,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 31,
+  "empty_turns": 0,
+  "thinking_chars": 0,
+  "stop_reasons": [
+   "stop"
+  ],
+  "in_tokens_last": 1359.0,
+  "pass": false,
+  "why": "hello.txt=None",
+  "timed_out": false,
+  "wall_s": 3.798983335494995,
+  "srv": {
+   "prompt_tokens": 1359,
+   "prompt_ms": 1868.92,
+   "gen_tokens": 31,
+   "gen_ms": 1320.73,
+   "requests": 1,
+   "cached_tokens": 0,
+   "ctx_max": 1389,
+   "warn": []
+  },
+  "final_text": "\u001dpp resper();</h4><unused76>\u0003osP{ir go</b>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ncc2\u043d\u0430<th>er{<unused58> go\ufffd\ufffd with * nper",
+  "prompt": "Create a file named hello.txt in the current directory containing exactly this single line: Hello from the NPU agent test"
+ },
+ {
+  "case": "read_answer",
+  "rep": 1,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "tools": [],
+  "max_parallel": 0,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 36,
+  "empty_turns": 0,
+  "thinking_chars": 0,
+  "stop_reasons": [
+   "stop"
+  ],
+  "in_tokens_last": 1356.0,
+  "pass": false,
+  "why": "answer='*.age</h4>age appgeg dis Iif +</html> with2 \u0627</html> \u0939\u0948</b> whang resac</b>\ufffd dis ex res<th>ubif<unused76></b>P</b>' want BLUEHHRO 2026-11-24",
+  "timed_out": false,
+  "wall_s": 3.480879306793213,
+  "srv": {
+   "prompt_tokens": 1026,
+   "prompt_ms": 1382.62,
+   "gen_tokens": 36,
+   "gen_ms": 1530.25,
+   "requests": 1,
+   "cached_tokens": 0,
+   "ctx_max": 1391,
+   "warn": []
+  },
+  "final_text": "*.age</h4>age appgeg dis Iif +</html> with2 \u0627</html> \u0939\u0948</b> whang resac</b>\ufffd dis ex res<th>ubif<unused76></b>P</b>",
+  "prompt": "Read notes.txt and tell me the codename and the launch deadline. Keep the answer to one sentence."
+ },
+ {
+  "case": "shell_cmd",
+  "rep": 1,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "tools": [],
+  "max_parallel": 0,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 102,
+  "empty_turns": 0,
+  "thinking_chars": 0,
+  "stop_reasons": [
+   "stop"
+  ],
+  "in_tokens_last": 1365.0,
+  "pass": false,
+  "why": "answer='ickpp<unused17>age            --ith</h4>\ufffdith\ufffd<unused17>\ufffd<unused58>\ufffd\ufffdT            E</b> with{el  </html> restherith\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n\\n</h4>{</html>ageEel<unused85>  er\ufffd\ufffdper<unused17>' want JPUBUYFW tool_calls=0",
+  "timed_out": false,
+  "wall_s": 6.440767526626587,
+  "srv": {
+   "prompt_tokens": 1036,
+   "prompt_ms": 1464.8,
+   "gen_tokens": 102,
+   "gen_ms": 4421.46,
+   "requests": 1,
+   "cached_tokens": 0,
+   "ctx_max": 1466,
+   "warn": []
+  },
+  "final_text": "ickpp<unused17>age            --ith</h4>\ufffdith\ufffd<unused17>\ufffd<unused58>\ufffd\ufffdT            E</b> with{el  </html> restherith\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n</h4>{</html>ageEel<unused85>  er\ufffd\ufffdper<unused17>",
+  "prompt": "Use the bash tool to run: cat secret.txt | tr a-z A-Z   and then tell me exactly what it printed."
+ },
+ {
+  "case": "py_func_test",
+  "rep": 1,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "tools": [],
+  "max_parallel": 0,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 51,
+  "empty_turns": 0,
+  "thinking_chars": 0,
+  "stop_reasons": [
+   "stop"
+  ],
+  "in_tokens_last": 1463.0,
+  "pass": false,
+  "why": "missing solution.py or test_solution.py",
+  "timed_out": false,
+  "wall_s": 4.425039052963257,
+  "srv": {
+   "prompt_tokens": 1127,
+   "prompt_ms": 1644.99,
+   "gen_tokens": 51,
+   "gen_ms": 2191.03,
+   "requests": 1,
+   "cached_tokens": 0,
+   "ctx_max": 1513,
+   "warn": []
+  },
+  "final_text": "g have<unused58>ourge with[multimodal]age\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n<unused17>\u043d\u0430{2G *{\ufffdcc</h4>.per\ufffd *\ufffd\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\ufffd thisosG \u0939\u0948\ufffd go</html>au v Iub\ufffd\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\u0003ant \u0939\u0948assther vubtherther",
+  "prompt": "Create solution.py with a function parse_duration(s) that converts strings like \"1h30m\", \"45s\", \"2m\", \"1h1m1s\" into a total number of seconds (int). It must raise ValueError for empty or malformed strings (e.g. \"\", \"abc\", \"5\", \"1x\"). Then create test_solution.py containing plain assert-based tests (no pytest needed) that print \"ALL TESTS PASSED\" when they succeed. Run it with `python test_solution.py` and fix any failure until it passes."
+ },
+ {
+  "case": "edit_file",
+  "rep": 1,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "tools": [],
+  "max_parallel": 0,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 52,
+  "empty_turns": 0,
+  "thinking_chars": 0,
+  "stop_reasons": [
+   "stop"
+  ],
+  "in_tokens_last": 1376.0,
+  "pass": false,
+  "why": "config.ini='[client]\\nhost = localhost\\ntimeout = 30\\nretries = 3\\n\\n[server]\\nport = 8080\\ntimeout = 30\\nworkers = 4\\n\\n[logging]\\nlevel = info\\n'",
+  "timed_out": false,
+  "wall_s": 4.108468532562256,
+  "srv": {
+   "prompt_tokens": 942,
+   "prompt_ms": 1318.5,
+   "gen_tokens": 52,
+   "gen_ms": 2228.39,
+   "requests": 1,
+   "cached_tokens": 0,
+   "ctx_max": 1427,
+   "warn": []
+  },
+  "final_text": "\u001dIn</h4>\ufffdelInhe<unused85>\ufffd",
+  "prompt": "In config.ini change the timeout in the [server] section from 30 to 90. Do not change anything else in the file (the [client] timeout must stay 30)."
+ }
+]

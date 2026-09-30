@@ -1,0 +1,1029 @@
+[
+ {
+  "case": "create_file",
+  "rep": 1,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "write"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 132,
+  "empty_turns": 0,
+  "thinking_chars": 168,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1670.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 8.490152597427368,
+  "srv": {
+   "prompt_tokens": 1645,
+   "prompt_ms": 2620.25,
+   "gen_tokens": 132,
+   "gen_ms": 5051.53,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1775,
+   "warn": []
+  },
+  "final_text": "Done! Created `hello.txt` with the content \"Hello from the NPU agent test\".",
+  "prompt": "Create a file named hello.txt in the current directory containing exactly this single line: Hello from the NPU agent test"
+ },
+ {
+  "case": "read_answer",
+  "rep": 1,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "read"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 104,
+  "empty_turns": 0,
+  "thinking_chars": 226,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1654.5,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 6.283912897109985,
+  "srv": {
+   "prompt_tokens": 1090,
+   "prompt_ms": 1824.01,
+   "gen_tokens": 104,
+   "gen_ms": 3960.45,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1758,
+   "warn": []
+  },
+  "final_text": "The codename is BLUEHHRO and the launch deadline is 2026-11-24.",
+  "prompt": "Read notes.txt and tell me the codename and the launch deadline. Keep the answer to one sentence."
+ },
+ {
+  "case": "shell_cmd",
+  "rep": 1,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "bash"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 89,
+  "empty_turns": 0,
+  "thinking_chars": 157,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1635.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 5.742276191711426,
+  "srv": {
+   "prompt_tokens": 1050,
+   "prompt_ms": 1758.7,
+   "gen_tokens": 89,
+   "gen_ms": 3357.86,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1703,
+   "warn": []
+  },
+  "final_text": "It printed:\n\n```\nJPUBUYFW\n```",
+  "prompt": "Use the bash tool to run: cat secret.txt | tr a-z A-Z   and then tell me exactly what it printed."
+ },
+ {
+  "case": "py_func_test",
+  "rep": 1,
+  "tool_calls": 3,
+  "tool_errors": 0,
+  "tools": [
+   "write",
+   "write",
+   "bash"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 1937,
+  "empty_turns": 0,
+  "thinking_chars": 873,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 2738.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 79.49724698066711,
+  "srv": {
+   "prompt_tokens": 1317,
+   "prompt_ms": 2897.11,
+   "gen_tokens": 1937,
+   "gen_ms": 76003.75,
+   "requests": 4,
+   "cached_tokens": 0,
+   "ctx_max": 3818,
+   "warn": []
+  },
+  "final_text": "All 11 tests passed. Here's what was created:\n\n**`solution.py`** \u2014 `parse_duration(s)` uses a regex to validate and parse duration strings:\n- Pattern `^(\\d+h)?(\\d+m)?(\\d+s)?$` ensures the string is a valid sequence of optional `Nh`, `Nm`, `Ns` segments\n- Any string not matching (empty, malformed, in",
+  "prompt": "Create solution.py with a function parse_duration(s) that converts strings like \"1h30m\", \"45s\", \"2m\", \"1h1m1s\" into a total number of seconds (int). It must raise ValueError for empty or malformed strings (e.g. \"\", \"abc\", \"5\", \"1x\"). Then create test_solution.py containing plain assert-based tests (no pytest needed) that print \"ALL TESTS PASSED\" when they succeed. Run it with `python test_solution.py` and fix any failure until it passes."
+ },
+ {
+  "case": "edit_file",
+  "rep": 1,
+  "tool_calls": 3,
+  "tool_errors": 0,
+  "tools": [
+   "bash",
+   "read",
+   "edit"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 311,
+  "empty_turns": 0,
+  "thinking_chars": 390,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1769.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 15.002467393875122,
+  "srv": {
+   "prompt_tokens": 1066,
+   "prompt_ms": 2226.7200000000003,
+   "gen_tokens": 311,
+   "gen_ms": 11998.08,
+   "requests": 4,
+   "cached_tokens": 0,
+   "ctx_max": 2033,
+   "warn": []
+  },
+  "final_text": "Done. The `[server]` timeout has been changed from 30 to 90. The `[client]` timeout remains at 30.",
+  "prompt": "In config.ini change the timeout in the [server] section from 30 to 90. Do not change anything else in the file (the [client] timeout must stay 30)."
+ },
+ {
+  "case": "find_count",
+  "rep": 1,
+  "tool_calls": 3,
+  "tool_errors": 0,
+  "tools": [
+   "bash",
+   "bash",
+   "write"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 334,
+  "empty_turns": 0,
+  "thinking_chars": 479,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1810.75,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 15.96823239326477,
+  "srv": {
+   "prompt_tokens": 1059,
+   "prompt_ms": 2183.4,
+   "gen_tokens": 334,
+   "gen_ms": 12922.24,
+   "requests": 4,
+   "cached_tokens": 0,
+   "ctx_max": 2049,
+   "warn": []
+  },
+  "final_text": "Done. Found **5** `.log` files under `logs/` with a total of **129** lines. Result written to `result.txt`:\n\n```\nfiles=5 lines=129\n```",
+  "prompt": "Under the logs/ directory (recursively) find all files ending in .log, count the TOTAL number of lines across all of them, and write the result to result.txt in exactly this format on one line: files=<number of .log files> lines=<total lines>"
+ },
+ {
+  "case": "parallel_read",
+  "rep": 1,
+  "tool_calls": 5,
+  "tool_errors": 0,
+  "tools": [
+   "read",
+   "read",
+   "read",
+   "read",
+   "write"
+  ],
+  "max_parallel": 4,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 325,
+  "empty_turns": 0,
+  "thinking_chars": 304,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1794.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 15.031161546707153,
+  "srv": {
+   "prompt_tokens": 1030,
+   "prompt_ms": 1956.5700000000002,
+   "gen_tokens": 325,
+   "gen_ms": 12597.02,
+   "requests": 3,
+   "cached_tokens": 0,
+   "ctx_max": 2012,
+   "warn": []
+  },
+  "final_text": "Done! The sum of 468 + 747 + 845 + 566 = **2626** has been written to `sum.txt`.",
+  "prompt": "Read the four files a.txt, b.txt, c.txt and d.txt (they are independent, read them all), add up the four numbers, and write only the sum to sum.txt."
+ },
+ {
+  "case": "long_result",
+  "rep": 1,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "read"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 110,
+  "empty_turns": 0,
+  "thinking_chars": 153,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 4183.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 12.508103370666504,
+  "srv": {
+   "prompt_tokens": 6038,
+   "prompt_ms": 7807.610000000001,
+   "gen_tokens": 110,
+   "gen_ms": 4273.88,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 6806,
+   "warn": []
+  },
+  "final_text": "The release access code from the AUDIT NOTE is **094229**.",
+  "prompt": "Read the file report.txt in full. It contains one line with an \"AUDIT NOTE\" giving a release access code. Tell me that code."
+ },
+ {
+  "case": "no_tool",
+  "rep": 1,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "tools": [],
+  "max_parallel": 0,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 93,
+  "empty_turns": 0,
+  "thinking_chars": 232,
+  "stop_reasons": [
+   "stop"
+  ],
+  "in_tokens_last": 1598.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 5.47614860534668,
+  "srv": {
+   "prompt_tokens": 938,
+   "prompt_ms": 1411.0,
+   "gen_tokens": 93,
+   "gen_ms": 3575.03,
+   "requests": 1,
+   "cached_tokens": 0,
+   "ctx_max": 1690,
+   "warn": []
+  },
+  "final_text": "The capital of France is Paris, and 12 times 12 equals 144.",
+  "prompt": "Without using any tools: what is the capital of France, and what is 12 times 12? Answer in one short sentence."
+ },
+ {
+  "case": "create_file",
+  "rep": 2,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "write"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 142,
+  "empty_turns": 0,
+  "thinking_chars": 219,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1670.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 7.544204235076904,
+  "srv": {
+   "prompt_tokens": 983,
+   "prompt_ms": 1699.9699999999998,
+   "gen_tokens": 142,
+   "gen_ms": 5451.55,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1783,
+   "warn": []
+  },
+  "final_text": "Done! Created `hello.txt` with the content \"Hello from the NPU agent test\".",
+  "prompt": "Create a file named hello.txt in the current directory containing exactly this single line: Hello from the NPU agent test"
+ },
+ {
+  "case": "read_answer",
+  "rep": 2,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "read"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 103,
+  "empty_turns": 0,
+  "thinking_chars": 234,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1651.5,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 6.062382698059082,
+  "srv": {
+   "prompt_tokens": 996,
+   "prompt_ms": 1706.58,
+   "gen_tokens": 103,
+   "gen_ms": 3936.7000000000003,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1757,
+   "warn": []
+  },
+  "final_text": "The codename is BLUEHOHO and the launch deadline is 2026-11-22.",
+  "prompt": "Read notes.txt and tell me the codename and the launch deadline. Keep the answer to one sentence."
+ },
+ {
+  "case": "shell_cmd",
+  "rep": 2,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "bash"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 114,
+  "empty_turns": 0,
+  "thinking_chars": 136,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1634.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 6.537183523178101,
+  "srv": {
+   "prompt_tokens": 959,
+   "prompt_ms": 1628.69,
+   "gen_tokens": 114,
+   "gen_ms": 4352.24,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1731,
+   "warn": []
+  },
+  "final_text": "It printed:\n\n```\nCYNXBZHU\n```\n\nThe `cat secret.txt` command read the file, and `tr a-z A-Z` converted all lowercase letters to uppercase.",
+  "prompt": "Use the bash tool to run: cat secret.txt | tr a-z A-Z   and then tell me exactly what it printed."
+ },
+ {
+  "case": "py_func_test",
+  "rep": 2,
+  "tool_calls": 7,
+  "tool_errors": 0,
+  "tools": [
+   "write",
+   "write",
+   "bash",
+   "edit",
+   "edit",
+   "bash",
+   "read"
+  ],
+  "max_parallel": 2,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 2339,
+  "empty_turns": 0,
+  "thinking_chars": 1548,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 3519.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 97.32257652282715,
+  "srv": {
+   "prompt_tokens": 1778,
+   "prompt_ms": 4128.89,
+   "gen_tokens": 2339,
+   "gen_ms": 92465.01000000001,
+   "requests": 7,
+   "cached_tokens": 0,
+   "ctx_max": 4770,
+   "warn": []
+  },
+  "final_text": "**Summary:**\n\n- **`solution.py`** \u2014 `parse_duration(s)` uses a regex `^(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?$` to validate and parse hour/minute/second components. Returns `hours*3600 + minutes*60 + seconds`. Raises `ValueError` for anything that doesn't match (empty, bare numbers, invalid units, spaces",
+  "prompt": "Create solution.py with a function parse_duration(s) that converts strings like \"1h30m\", \"45s\", \"2m\", \"1h1m1s\" into a total number of seconds (int). It must raise ValueError for empty or malformed strings (e.g. \"\", \"abc\", \"5\", \"1x\"). Then create test_solution.py containing plain assert-based tests (no pytest needed) that print \"ALL TESTS PASSED\" when they succeed. Run it with `python test_solution.py` and fix any failure until it passes."
+ },
+ {
+  "case": "edit_file",
+  "rep": 2,
+  "tool_calls": 4,
+  "tool_errors": 0,
+  "tools": [
+   "bash",
+   "read",
+   "edit",
+   "read"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 354,
+  "empty_turns": 0,
+  "thinking_chars": 455,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1841.6,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 17.031946182250977,
+  "srv": {
+   "prompt_tokens": 1130,
+   "prompt_ms": 2554.77,
+   "gen_tokens": 354,
+   "gen_ms": 13691.98,
+   "requests": 5,
+   "cached_tokens": 0,
+   "ctx_max": 2139,
+   "warn": []
+  },
+  "final_text": "Done. The `[server]` timeout has been changed from 30 to 90. The `[client]` timeout remains at 30.",
+  "prompt": "In config.ini change the timeout in the [server] section from 30 to 90. Do not change anything else in the file (the [client] timeout must stay 30)."
+ },
+ {
+  "case": "find_count",
+  "rep": 2,
+  "tool_calls": 4,
+  "tool_errors": 0,
+  "tools": [
+   "bash",
+   "bash",
+   "write",
+   "read"
+  ],
+  "max_parallel": 2,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 319,
+  "empty_turns": 0,
+  "thinking_chars": 440,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1827.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 15.122023582458496,
+  "srv": {
+   "prompt_tokens": 1039,
+   "prompt_ms": 2134.56,
+   "gen_tokens": 319,
+   "gen_ms": 12364.29,
+   "requests": 4,
+   "cached_tokens": 0,
+   "ctx_max": 2014,
+   "warn": []
+  },
+  "final_text": "Done. Found **4** `.log` files under `logs/` with a combined total of **78** lines. Written to `result.txt` as `files=4 lines=78`.",
+  "prompt": "Under the logs/ directory (recursively) find all files ending in .log, count the TOTAL number of lines across all of them, and write the result to result.txt in exactly this format on one line: files=<number of .log files> lines=<total lines>"
+ },
+ {
+  "case": "parallel_read",
+  "rep": 2,
+  "tool_calls": 5,
+  "tool_errors": 0,
+  "tools": [
+   "read",
+   "read",
+   "read",
+   "read",
+   "write"
+  ],
+  "max_parallel": 4,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 334,
+  "empty_turns": 0,
+  "thinking_chars": 328,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1781.3333333333333,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 15.349787950515747,
+  "srv": {
+   "prompt_tokens": 1029,
+   "prompt_ms": 1941.0500000000002,
+   "gen_tokens": 334,
+   "gen_ms": 12965.4,
+   "requests": 3,
+   "cached_tokens": 0,
+   "ctx_max": 2020,
+   "warn": []
+  },
+  "final_text": "The four values are:\n- a.txt: 477\n- b.txt: 491\n- c.txt: 979\n- d.txt: 767\n\n**Sum: 2714** \u2014 written to `sum.txt`.",
+  "prompt": "Read the four files a.txt, b.txt, c.txt and d.txt (they are independent, read them all), add up the four numbers, and write only the sum to sum.txt."
+ },
+ {
+  "case": "long_result",
+  "rep": 2,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "read"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 131,
+  "empty_turns": 0,
+  "thinking_chars": 218,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 4166.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 13.360127687454224,
+  "srv": {
+   "prompt_tokens": 5998,
+   "prompt_ms": 7761.44,
+   "gen_tokens": 131,
+   "gen_ms": 5143.17,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 6787,
+   "warn": []
+  },
+  "final_text": "The release access code is **715250**.",
+  "prompt": "Read the file report.txt in full. It contains one line with an \"AUDIT NOTE\" giving a release access code. Tell me that code."
+ },
+ {
+  "case": "no_tool",
+  "rep": 2,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "tools": [],
+  "max_parallel": 0,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 79,
+  "empty_turns": 0,
+  "thinking_chars": 191,
+  "stop_reasons": [
+   "stop"
+  ],
+  "in_tokens_last": 1600.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 4.922652244567871,
+  "srv": {
+   "prompt_tokens": 940,
+   "prompt_ms": 1412.1,
+   "gen_tokens": 79,
+   "gen_ms": 3030.86,
+   "requests": 1,
+   "cached_tokens": 0,
+   "ctx_max": 1678,
+   "warn": []
+  },
+  "final_text": "The capital of France is Paris, and 12 times 12 equals 144.",
+  "prompt": "Without using any tools: what is the capital of France, and what is 12 times 12? Answer in one short sentence."
+ },
+ {
+  "case": "create_file",
+  "rep": 3,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "write"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 142,
+  "empty_turns": 0,
+  "thinking_chars": 202,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1669.5,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 7.544204235076904,
+  "srv": {
+   "prompt_tokens": 985,
+   "prompt_ms": 1683.06,
+   "gen_tokens": 142,
+   "gen_ms": 5454.5199999999995,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1785,
+   "warn": []
+  },
+  "final_text": "Done! Created `hello.txt` with the content:\n\n```\nHello from the NPU agent test\n```",
+  "prompt": "Create a file named hello.txt in the current directory containing exactly this single line: Hello from the NPU agent test"
+ },
+ {
+  "case": "read_answer",
+  "rep": 3,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "read"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 133,
+  "empty_turns": 0,
+  "thinking_chars": 288,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1654.5,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 7.217433214187622,
+  "srv": {
+   "prompt_tokens": 997,
+   "prompt_ms": 1707.3400000000001,
+   "gen_tokens": 133,
+   "gen_ms": 5068.71,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1788,
+   "warn": []
+  },
+  "final_text": "The codename is BLUENENN and the launch deadline is 2026-10-17.",
+  "prompt": "Read notes.txt and tell me the codename and the launch deadline. Keep the answer to one sentence."
+ },
+ {
+  "case": "shell_cmd",
+  "rep": 3,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "bash"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 97,
+  "empty_turns": 0,
+  "thinking_chars": 190,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1637.5,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 5.839940309524536,
+  "srv": {
+   "prompt_tokens": 958,
+   "prompt_ms": 1625.94,
+   "gen_tokens": 97,
+   "gen_ms": 3667.47,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 1713,
+   "warn": []
+  },
+  "final_text": "It printed:\n\n```\nGAFQCRHY\n```",
+  "prompt": "Use the bash tool to run: cat secret.txt | tr a-z A-Z   and then tell me exactly what it printed."
+ },
+ {
+  "case": "py_func_test",
+  "rep": 3,
+  "tool_calls": 4,
+  "tool_errors": 0,
+  "tools": [
+   "write",
+   "edit",
+   "write",
+   "bash"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 2680,
+  "empty_turns": 0,
+  "thinking_chars": 1112,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 3136.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 109.41672611236572,
+  "srv": {
+   "prompt_tokens": 1285,
+   "prompt_ms": 2915.97,
+   "gen_tokens": 2680,
+   "gen_ms": 105892.91999999998,
+   "requests": 5,
+   "cached_tokens": 0,
+   "ctx_max": 4620,
+   "warn": []
+  },
+  "final_text": "All 14 tests passed. Here's a summary:\n\n**`solution.py`** \u2014 `parse_duration(s)` parses strings like `\"1h30m\"` into total seconds:\n- Supports `h` (hours), `m` (minutes), `s` (seconds) in any order\n- Skips whitespace between components\n- Raises `ValueError` for: empty strings, `\"abc\"`, `\"5\"` (no unit)",
+  "prompt": "Create solution.py with a function parse_duration(s) that converts strings like \"1h30m\", \"45s\", \"2m\", \"1h1m1s\" into a total number of seconds (int). It must raise ValueError for empty or malformed strings (e.g. \"\", \"abc\", \"5\", \"1x\"). Then create test_solution.py containing plain assert-based tests (no pytest needed) that print \"ALL TESTS PASSED\" when they succeed. Run it with `python test_solution.py` and fix any failure until it passes."
+ },
+ {
+  "case": "edit_file",
+  "rep": 3,
+  "tool_calls": 4,
+  "tool_errors": 0,
+  "tools": [
+   "bash",
+   "read",
+   "edit",
+   "read"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 359,
+  "empty_turns": 0,
+  "thinking_chars": 507,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1836.8,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 16.946516275405884,
+  "srv": {
+   "prompt_tokens": 1129,
+   "prompt_ms": 2600.77,
+   "gen_tokens": 359,
+   "gen_ms": 13620.399999999998,
+   "requests": 5,
+   "cached_tokens": 0,
+   "ctx_max": 2143,
+   "warn": []
+  },
+  "final_text": "Done. The `[server]` timeout has been changed from 30 to 90. The `[client]` timeout remains at 30.",
+  "prompt": "In config.ini change the timeout in the [server] section from 30 to 90. Do not change anything else in the file (the [client] timeout must stay 30)."
+ },
+ {
+  "case": "find_count",
+  "rep": 3,
+  "tool_calls": 3,
+  "tool_errors": 0,
+  "tools": [
+   "bash",
+   "bash",
+   "write"
+  ],
+  "max_parallel": 2,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 306,
+  "empty_turns": 0,
+  "thinking_chars": 470,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1781.6666666666667,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 14.585957527160645,
+  "srv": {
+   "prompt_tokens": 1017,
+   "prompt_ms": 1983.27,
+   "gen_tokens": 306,
+   "gen_ms": 11852.2,
+   "requests": 3,
+   "cached_tokens": 0,
+   "ctx_max": 1980,
+   "warn": []
+  },
+  "final_text": "Done. Found **4** `.log` files under `logs/` with a total of **66** lines. Written to `result.txt`:\n\n```\nfiles=4 lines=66\n```",
+  "prompt": "Under the logs/ directory (recursively) find all files ending in .log, count the TOTAL number of lines across all of them, and write the result to result.txt in exactly this format on one line: files=<number of .log files> lines=<total lines>"
+ },
+ {
+  "case": "parallel_read",
+  "rep": 3,
+  "tool_calls": 5,
+  "tool_errors": 0,
+  "tools": [
+   "read",
+   "read",
+   "read",
+   "read",
+   "write"
+  ],
+  "max_parallel": 4,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 500,
+  "empty_turns": 0,
+  "thinking_chars": 352,
+  "stop_reasons": [
+   "toolUse",
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 1893.3333333333333,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 22.591094493865967,
+  "srv": {
+   "prompt_tokens": 1057,
+   "prompt_ms": 2076.26,
+   "gen_tokens": 500,
+   "gen_ms": 19846.24,
+   "requests": 3,
+   "cached_tokens": 0,
+   "ctx_max": 2214,
+   "warn": []
+  },
+  "final_text": "Done! I read the four files and computed the sum: 637 + 380 + 887 + 493 = **2397**, which has been written to `sum.txt`.",
+  "prompt": "Read the four files a.txt, b.txt, c.txt and d.txt (they are independent, read them all), add up the four numbers, and write only the sum to sum.txt."
+ },
+ {
+  "case": "long_result",
+  "rep": 3,
+  "tool_calls": 1,
+  "tool_errors": 0,
+  "tools": [
+   "read"
+  ],
+  "max_parallel": 1,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 146,
+  "empty_turns": 0,
+  "thinking_chars": 233,
+  "stop_reasons": [
+   "toolUse",
+   "stop"
+  ],
+  "in_tokens_last": 4188.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 14.217282772064209,
+  "srv": {
+   "prompt_tokens": 6039,
+   "prompt_ms": 7882.299999999999,
+   "gen_tokens": 146,
+   "gen_ms": 5735.139999999999,
+   "requests": 2,
+   "cached_tokens": 0,
+   "ctx_max": 6843,
+   "warn": []
+  },
+  "final_text": "The release access code from the AUDIT NOTE is **708621**.",
+  "prompt": "Read the file report.txt in full. It contains one line with an \"AUDIT NOTE\" giving a release access code. Tell me that code."
+ },
+ {
+  "case": "no_tool",
+  "rep": 3,
+  "tool_calls": 0,
+  "tool_errors": 0,
+  "tools": [],
+  "max_parallel": 0,
+  "leak": [],
+  "api_errors": [],
+  "out_tokens": 84,
+  "empty_turns": 0,
+  "thinking_chars": 211,
+  "stop_reasons": [
+   "stop"
+  ],
+  "in_tokens_last": 1599.0,
+  "pass": true,
+  "why": "",
+  "timed_out": false,
+  "wall_s": 5.085182189941406,
+  "srv": {
+   "prompt_tokens": 939,
+   "prompt_ms": 1429.82,
+   "gen_tokens": 84,
+   "gen_ms": 3118.72,
+   "requests": 1,
+   "cached_tokens": 0,
+   "ctx_max": 1682,
+   "warn": []
+  },
+  "final_text": "The capital of France is Paris, and 12 times 12 equals 144.",
+  "prompt": "Without using any tools: what is the capital of France, and what is 12 times 12? Answer in one short sentence."
+ }
+]
