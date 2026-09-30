@@ -83,3 +83,56 @@ Other notes: (1) RMS_NORM_SCALE fused kernel ended memcpy'ing through uncached V
 ## 2026-09-30 00:05  NEGATIVE CONTROL for the vgather conv-window kernel: PASS (gate fires)
 GGML_HEXAGON_OPS650_NEGCTRL=1 (pkg s13: swaps the b/d tap plane gather offsets in SSM_CONV+WIN) vs the same reference (pkg-merged2-m1, ref1): compare_logits_traces exit 1, first_bit_difference=1
 (row 1: the first decoded token after the prompt row). So the bit-exact logits gate does detect a wrong conv-window kernel; the correct kernel (s8/s9/s12) passes it.
+
+## 2026-09-30 01:35  FIRST UNTRACED PAIR (plain decode, Hello, 128 tokens; NOT yet interleaved - base r1 ran 00:17, s14F r1 ran 01:29; ABBA rounds 2/3 queued in ops650-q18)
+ops650-ab2-base-r1 (installed pkg-merged2-m1): 28.00 tok/s (35.72 ms/token).  ops650-ab2-s14F-r1 (s14 + all opt-in fusions): **35.69 tok/s (28.02 ms/token), +27.5%**.
+Do not quote as a result until the interleaved rounds finish.
+
+## 2026-09-30 01:36  MTP GATE (g8): PASS. pkg s14 + every opt-in fusion (GDN_STATE, RMS_NORM_SCALE, SHEXP_EP, SILU+MUL, conv-window SILU fold incl. WINK, MOE+TOPK for 2..4 rows, MOE_TOPK alias) vs pkg-merged2-m1,
+`--spec-type draft-mtp --spec-draft-n-max 1`, LLAMA_MTP_FUSED_CATCHUP=1, LLAMA_MTP_DRAFT_VOCAB=65536, Hello 128 tokens: target rows 128/128 bit-identical (compare_logits_traces --require-identical),
+draft candidate rows 72/72 bit-identical (--context-index 1 --draft-greedy).
+
+## 2026-09-30 02:08  g9: pkg s15 = s14 with all gated fusions ON BY DEFAULT (no env; MOE_TOPK alias default on): plain logits vs pkg-merged2-m1 (ref1), Hello 128 rows: bit-identical.
+Untraced plain decode so far: base r1 28.00; s14F r1 35.69, r2 35.47 (base rounds 2/3 pending).
+
+## 2026-09-30 04:06  UNTRACED PLAIN-DECODE A/B (Hello, 128 tokens, --spec-type none, seed 1234, temp 0; runs spread over 3.5 h because of NPU contention, so order is base r1, fused r1, fused r2, base r2, base r3, fused r3)
+| variant | runs (tok/s) | mean |
+| installed pkg-merged2-m1 (base) | 28.00, 26.56, 26.49 | **27.02** |
+| pkg-ops650-s14 + all gated fusions (s14F; == s15 defaults) | 35.69, 35.47, 34.02 | **35.06** |
+Gain +29.8% on the means (+21% vs the best base run, +37% vs the worst); per-run session drift on base is +-3% (the upstream agent measured base plain at 26.5-26.6 in the same window).
+ms/token: 37.0 -> 28.5. All comparisons that count are same-package-family runs in the same window; log files mtp-speed/ops650-ab2-*.
+
+## 2026-09-30 04:25  PPL gate 4x512 (run-prefill-ppl.ps1, pkg s14 + all gated fusions incl. MOE_TOPK alias, tracker fix, vgather kernels): **12.1307 +/- 1.11278 (exact)**
+
+## 2026-09-30 04:40  PPL 16 chunks: 13.3337 +/- 0.63454 (expected 13.3331 / 0.63451) with s14 + all gated fusions + MOE_TOPK alias env = 1 => NOT exact (4x512 was exact)
+Suspects on the prefill path: MOE_TOPK alias (prefill rows >= 32 now fused with the alias rule), RMS_NORM_SCALE (prefill rows), tracker/flush-threshold. Bisect queued (ops650-q20: off / fusions without alias / alias only, 16 chunks).
+Pre-emptive change (s16): alias default ON only for <= 4 rows (decode / MTP verify), prefill keeps the old overlap rule; explicit GGML_HEXAGON_MOE_TOPK_ALIAS=1 still allows it everywhere. q21 runs s16 defaults for 16 chunks.
+
+## 2026-09-30 05:19  fusion edge check (run-fusion-edge-check.ps1, pkg s14, all gated fusions on): 6/6 greedy transcripts identical (6/40/130/260/520/900 words, OPFUSION=1 vs 8062).
+
+## 2026-09-30 05:23  PPL 16-chunk bisect (expected 13.3331 +/- 0.63451)
+| package / config | PPL |
+| s14, all fusions OFF, alias 0 (tracker + vgather kernels + WQ 32 KB only) | **13.3331 +/- 0.63451 (exact)** |
+| s14, all gated fusions ON + GGML_HEXAGON_MOE_TOPK_ALIAS=1 for every row count | 13.3337 +/- 0.63454 (5e-5 relative: NOT exact) |
+| s16 defaults (all gated fusions ON, router top-k alias only for <= 4 rows, no env) | **13.3331 +/- 0.63451 (exact)** |
+=> the tracker fix and the conv kernels are exact on the prefill path; the alias router top-k fusion is exact for decode/MTP rows (logits gates) but perturbs prefill rows (>= 32) slightly, so the default now
+restricts the alias to <= 4 rows. (The alias-only run was not needed and was cancelled.) 4x512 with s14+alias was 12.1307 exact; a 4x512 run on s16 defaults is queued.
+s16 defaults 4x512 (no env): PPL 12.1307 (exact, run ops650-ppl4-s16def). So s16 defaults are exact on BOTH prefill PPL gates (12.1307 / 13.3331).
+g6: second prompt ('Explain how a hash table handles collisions, with a concrete example.') plain full-vocab logits, 128 rows: s14 + all fusions vs pkg-merged2-m1: bit-identical.
+Gate summary so far (all vs pkg-merged2-m1): plain logits Hello x (s3/s8/s9/s15) + hash prompt (s14+ALL) bit-identical; MTP target 128/128 + draft 72/72 (s14+ALL); PPL 12.1307 / 13.3331 (s16 defaults);
+fusion edge check 6/6 (s14+ALL); negative control fires; ref-vs-ref repeat identical.
+
+## 2026-09-30 12:05  STATUS AT HAND-OFF (the NPU has been held by other agents for ~6 h; the tail of the queue is still running unattended)
+Done and gated (all vs pkg-merged2-m1 = installed): see gate list above. FINAL PACKAGE = `npu_campaign/pkg-ops650-s16` (branch `ops650` of llama.cpp-hexagon, worktree llama.cpp-hexagon-ops650, head b7f0f4e;
+branch point npu-htp-decode ce75353, which has not moved): tracker fix + vgather conv windows + flush threshold + RMS_NORM_SCALE copy fix + all gated fusions ON by default
+(`GGML_HEXAGON_OPS650_FUSE=0` turns the five opt-in matchers off, `GGML_HEXAGON_MOE_TOPK_ALIAS=0` the router alias).
+Still queued/running (ops650-q18.sh, ops650-q24.sh; results will land in mtp-speed/ops650-abm-*, ops650-h2-*, ops650-gates.out; ops650-finisher.sh appends a summary to this log when q18 ends):
+ - MTP interleaved ABBA base vs s14F (draft-max 1, fused catch-up, dv 65536), 3 rounds; host knobs (OPBATCH 1280, OPPOLL=1) one round; g10 = plain gate of s16 defaults.
+ - delete npu_campaign/mtp-speed/ops650-g1-ref1.logits.bin (254 MB) after g10.
+Not done: MTP speed numbers (only bit-exact gates + profile-mode op times, which are confounded by session drift), per-layer MTP fusions for GDN state (T=2), GDN-gates chain fusion, 3+ prompt gates on the
+final package (2 prompts + Hello done), prefill speed A/B of the tracker fix.
+Not worth doing (measured): (1) persistent-kernel / mega-fused layer for DISPATCH reasons - empty fork/join is 0.38 us/op and the DMA round trip 0.6 us/op; after the tracker fix the whole remaining framework
+is ~1.7 us/op (small) / 3 us/op (big) = 2.9 ms of 29 ms; the recoverable upper bound from removing every per-op fixed cost incl. kernel prologues is ~6 ms (22%), ~9 ms (33%) if matmul pipeline fill/drain
+(15-18 us fixed per matmul op, 6.5-7 ms) were also hidden by cross-op weight prefetch, which needs kernel cooperation in the int4 matmul code (other agents' area) - realistic 3-4 ms.
+(2) DMA-only exemption from dirty tracking: only ~0.5 ms left to gain and it reopens the stale-cache-line hazard class decode2 fixed.
+(3) more small-op fusions: each removes only ~4-5 us/op now; GDN gates chain (5 ops x 30 layers) would be ~0.6 ms.

@@ -4,3 +4,7 @@ GATE g4 ref1 vs s8+ALL optin fusions exit=1 ::          ^^^^^^^^^^^^^^^^ FileNo
 GATE g3 ref1 vs fastdirty+vecconv(s8) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
 GATE g4 ref1 vs s8+ALL optin fusions exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
 GATE g7 NEGATIVE CONTROL (wrong conv tap plane) ref1 vs s13+NEGCTRL exit=1 (must be non-zero) :: Stopping: later rows need not share the same generated prefix. first_bit_difference=1 first_raw_argmax_difference=None compared_rows=12 reference_rows=128 candidate_rows=128 
+GATE g8 MTP target rows merged2-m1 vs s14+ALL(+TOPK_SMALLT) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE g8 MTP draft rows exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=72 reference_rows=72 candidate_rows=72 
+GATE g9 ref1 vs s15 defaults (fusions on by default, no env) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE g6 hash-table prompt plain ref(merged2-m1) vs s14+ALL exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 

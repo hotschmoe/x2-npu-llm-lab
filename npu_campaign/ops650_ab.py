@@ -5,7 +5,7 @@ from collections import defaultdict
 pre = sys.argv[1]
 res = defaultdict(list)
 for f in sorted(glob.glob(f'mtp-speed/{pre}-*.detail.log')):
-    m = re.match(rf'mtp-speed[\/]{re.escape(pre)}-(.+)-r(\d+)\.detail\.log', f)
+    m = re.match(re.escape(pre) + r'-(.+)-r(\d+)\.detail\.log$', os.path.basename(f))
     if not m: continue
     txt = open(f, errors='replace').read()
     t = re.findall(r'(?<!prompt )eval time =\s+([\d.]+) ms /\s+(\d+) tokens[^\n]*?([\d.]+) tokens per second', txt)
