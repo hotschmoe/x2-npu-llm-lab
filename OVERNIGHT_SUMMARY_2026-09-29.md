@@ -73,3 +73,24 @@ router exact-refine (my exact-dot router did not reproduce the HVX router's PPL:
 Done. `mtp-speedup` (decode agent) and `npu-htp-decode` (prefill line) were merged cleanly at ee4381b (the only content the decode branch lacked was the
 column-chunk change in matmul-ops.c, which it did not touch). The decode agent's worktree `llama.cpp-hexagon-mtp` and branch `mtp-speedup` still exist; they can be
 deleted once nobody needs them.
+
+## UPDATE 2026-09-29 evening: second merge installed (prefill2 + decode2 + mamba)
+
+Installed = branch `merged2` of `llama.cpp-hexagon` (worktree `llama.cpp-hexagon-merged2`, tip ce75353 = npu-htp-decode ee4381b + decode2 84c8650 + prefill2 2bd9d77 + mamba 9c5e286; the only conflicts were ADD+NW in binary-ops.c / ggml-hexagon.cpp: mamba's n_src generalization x prefill2's Gemma expert-scale fold, resolved by keeping both, scale fold restricted to n_src == 8). Package `npu_campaign/pkg-merged2-m1` via `install-merged2.ps1` (host ggml-hexagon.dll 09641A0A, skel D9E7CFC0, catalog 063F65B1, llama.dll 70AC0BBE). Rollback: `npu_campaign/backup-merged2-install-prechange` (the state described above).
+
+Root cause of the plain-path instability (decode2): `hex_l2flush` stepped 128 B per `dccleaninva`, but the v81 core cleans a 64 B granule, so every second half of a flushed range stayed stale. Fixed (64 B steps); plain runs are now bit-reproducible and plain == MTP target logits bit for bit.
+
+Interleaved A/B, merged vs previously installed (3 rounds each):
+| | installed | merged |
+| --- | ---: | ---: |
+| Qwen pp1024 ub1024, default (HVX router) | 762 | 764 |
+| Qwen pp1024, `GGML_HEXAGON_ROUTER_HVX=0` (HMX router + exact top-16 refine, PPL 12.1611) | - | 843 (+10.6%) |
+| Gemma 4 pp1024 | 874 | 984 (+12.6%) |
+| Plain decode (run 1 / run 2) | 27.46 / 26.51 | 26.73 / 26.18 (within noise; ~1.5% plausible cost of the 64 B flush) |
+| MTP decode (draft-max 1) | 29.82 | 29.32 (-1.7%), acceptance 106/149 unchanged |
+| Nemotron-3-Nano Q4_0 (mamba, own session) | CPU fallback | pp1024 ~954, tg 31.7 |
+| Nemotron-3.5-Lightning Q4_0 (mamba) | - | pp1024 970, tg 27.5 |
+
+Gates on the merged build: Qwen PPL 12.1307 (4x512) and 13.3331 (16 chunks) exact; fusion on/off edge check 6/6; MTP/plain full-vocab logits bit-identical to decode2's fix build (128 rows, plain-plain, mtp-mtp, plain-mtp); Nano PPL 16.1617 vs 16.1310 (KLD vs CPU 0.00527 vs 0.00516, inside the +-0.00024 error: noise floor). Installed default path re-checked: PPL 12.1307.
+
+Defaults: router stays on HVX (bit-exact); set `GGML_HEXAGON_ROUTER_HVX=0` for the HMX router (+10-11% prefill on Qwen, PPL +0.25%). New: SSM_SCAN on HTP0 (Nemotron), Q5_1 shared-expert repack to Q8_0, cache-flush fix. Target Nemotron is 3.5 Lightning (see NEMOTRON_NPU.md). Not done: decode2's `qq_pending.sh` (Q4_0 MTP head, garbage-output hunt), NPU MTP speed on Lightning, Nemotron ub sweep. Reference `.kld` for Nano regenerated at npu_campaign/mamba-corr/cpu_nemo.kld (267 MB, deletable).
