@@ -1,0 +1,5 @@
+round 1 ID_HVX_MAX_T=4 pp256 ub256 -> 542.36 t/s
+round 1 ID_HVX_MAX_T=4096 pp256 ub256 -> 28.83 t/s
+round 2 ID_HVX_MAX_T=4 pp256 ub256 -> 565.26 t/s
+round 2 ID_HVX_MAX_T=4096 pp256 ub256 -> 287.38 t/s
+round 3 ID_HVX_MAX_T=4 pp256 ub256 -> 561.27 t/s
