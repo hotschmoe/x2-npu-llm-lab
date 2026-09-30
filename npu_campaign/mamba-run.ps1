@@ -13,6 +13,7 @@ foreach ($kv in ($Env -split ';' | Where-Object { $_ })) {
     [Environment]::SetEnvironmentVariable($k, $v)
 }
 [Environment]::SetEnvironmentVariable('ADSP_LIBRARY_PATH', "$Pkg\lib;")
+if ($env:NPU_LOCK_HELD -eq '1') { $NoLock = [switch]::Present }   # caller (lockrun*.py) already holds the lock
 if (-not $NoLock) {
     # same lock dir/owner protocol as npu-lock.ps1 but polls every 50 ms so that a chain of back-to-back holders cannot starve us
     $dl = (Get-Date).AddSeconds(14400)
