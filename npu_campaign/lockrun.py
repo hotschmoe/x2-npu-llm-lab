@@ -6,7 +6,14 @@ if cmd and cmd[0] == '--': cmd = cmd[1:]
 while True:
     try:
         os.mkdir(lock); open(os.path.join(lock, 'owner.txt'), 'w').write(f'decode2 lockrun pid={os.getpid()} started={time.ctime()}'); break
-    except FileExistsError: time.sleep(0.01)
+    except FileExistsError:
+        # stale-lock recovery (same rule as npu-lock.ps1): owner pid dead and owner.txt older than 2 minutes
+        try:
+            f = os.path.join(lock, 'owner.txt'); pid = int(open(f).read().split('pid=')[1].split()[0])
+            alive = subprocess.run(['tasklist', '/FI', f'PID eq {pid}'], capture_output=True, text=True).stdout.count(str(pid)) > 0
+            if not alive and time.time() - os.path.getmtime(f) > 120: shutil.rmtree(lock, ignore_errors=True)
+        except Exception: pass
+        time.sleep(0.5)
 try:
     env = dict(os.environ); env['NPU_LOCK_HELD'] = '1'
     sys.exit(subprocess.run(cmd, env=env).returncode)

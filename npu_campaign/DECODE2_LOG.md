@@ -115,3 +115,12 @@ Queued: ABBA speed base vs fix64 (plain and MTP), prefill PPL 12.1307/13.3331, M
 | sky prose | identical | identical | identical | identical | 59/68, 59/68 |
 | hash-table | identical | identical | identical | identical | 54/72, 55/71 |
 i.e. the plain path is now run-to-run deterministic and the MTP target logits equal the plain logits bit for bit, on every row.
+
+## 17:15 Speed runs ABORTED (laptop moved to battery); no speed numbers are recorded
+The four plain runs that completed before the switch (base 29.15 on AC earlier; then fix64 27.05, fix64 21.21, base 21.13 on battery) are NOT valid A/B data and must not be quoted.
+Also note run-mtp-speed refuses existing labels, so a re-run of a queue script needs fresh labels (qq_pending.sh uses d2s2/d2h2/d2b2).
+PENDING (need AC power, `nohup ./qq_pending.sh > qq_pending.out &`, every run takes the NPU lock via lockrun.py):
+ 1. interleaved untraced ABBA, plain and MTP (fc + dv65536), base vs fix64 (Hello 256): cost of the 2x flush instructions (expected to be tiny: flushes are per-op ranges, 64 B steps).
+ 2. item D: PPL (already scripted in qq_pending.sh section 4: Q6_K head vs Q4_0 head model `..-mtp-f32-headq40.gguf`, made by requant-head.exe) + decode ABBA plain/MTP with the Q4_0 head.
+ 3. item B garbage hunt, base vs fix64, slots=4 (sections 5).
+ Not attempted: item C (recurrent-state snapshot DMA, 2-query FA, small-op overhead, OPPOLL power policy with npu-watt): all need timing measurements.
