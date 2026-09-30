@@ -1,0 +1,6 @@
+GATE ref1 vs ref2 exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE ref1 vs off exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE g4 ref1 vs s8+ALL optin fusions exit=1 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/ops650-g4-all.logits.bin' 
+GATE g3 ref1 vs fastdirty+vecconv(s8) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE g4 ref1 vs s8+ALL optin fusions exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE g7 NEGATIVE CONTROL (wrong conv tap plane) ref1 vs s13+NEGCTRL exit=1 (must be non-zero) :: Stopping: later rows need not share the same generated prefix. first_bit_difference=1 first_raw_argmax_difference=None compared_rows=12 reference_rows=128 candidate_rows=128 
