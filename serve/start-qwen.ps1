@@ -11,7 +11,7 @@ param(
     [ValidateSet('chat', 'code', 'both')][string]$Mode = 'chat',
     [int]$Port = 8080,
     [string]$BindHost = '127.0.0.1',
-    [int]$Ctx = 32768,
+    [int]$Ctx = 262144,
     [int]$B = 2048,
     [int]$Ub = 1024,
     [double]$Temp = 0.6, [double]$TopP = 0.95, [int]$TopK = 20, [double]$MinP = 0.0,

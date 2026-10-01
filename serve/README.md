@@ -100,3 +100,13 @@ Model ~19.4 GiB resident. `-c 32768`: only 10 of 40 layers are full attention (s
 - **`GGML_HEXAGON_FA_SELECT` / `GDN_SELECT` must be 2 for a server** (set in start-qwen.ps1 since 2026-10-01). The decode-tuned value 1/1 (copied from the MTP benchmark script) made prompt processing ~20 tok/s (a 1623-token PI prompt took 82 s);
   with 2/2 the same kind of prompt runs at ~700 tok/s and decode stays 40 tok/s.
 - PI is installed under Node LTS (`npm -g @earendil-works/pi-coding-agent`, 1.0.0) from 2026-10-01; the bun copy and the old standalone shim (`~\.localin\pi.cmd.bak`, pointing at pi-v0.85.1) were retired. Update with `npm update -g @earendil-works/pi-coding-agent`.
+
+### Update 2026-10-01: default context is now 262144 (the model's native maximum)
+`start-qwen.ps1 -Ctx` defaults to 262144; PI's `hexagon-npu` entry has `contextWindow 262144` and `maxTokens 65536` (the earlier 4096 cap truncated long file writes; the server itself has no output cap, `n_predict = -1`).
+Validated with `serve\long_ctx_test.py <port> <tokens>` (needle-in-haystack: a secret code planted at the start of a long prompt, asked at the end), Qwen3.6-35B-A3B Q4_0 on HTP0, plain decode, ub1024, AC:
+| prompt tokens | needle | prefill | decode |
+| ---: | --- | ---: | ---: |
+| ~1.4K | n/a | 700 t/s | 40.0 tok/s |
+| 30.5K | found | 644 t/s | 24.8 tok/s |
+| 125.8K | found | 416 t/s | 12.8 tok/s |
+RAM available after loading at 262144: ~10.4 GB of 47.6 (KV cache is allocated up front: 5 GiB). A full 250K prompt was not run (about 10+ minutes of prefill, decode ~7 tok/s expected); deep contexts are usable but slow, mostly because attention cost grows with depth.
