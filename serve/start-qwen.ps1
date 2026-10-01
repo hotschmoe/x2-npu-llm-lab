@@ -86,7 +86,7 @@ foreach ($v in @('LLAMA_LOGITS_TRACE', 'LLAMA_LOGITS_TRACE_FILE', 'LLAMA_TENSOR_
         'GGML_HEXAGON_NDEV', 'GGML_HEXAGON_SSM_SCAN', 'LLAMA_MTP_FUSED_CATCHUP', 'LLAMA_MTP_DRAFT_VOCAB')) { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
 $env:ADSP_LIBRARY_PATH = "$(Join-Path $pkgDir 'lib');"
 $env:GGML_HEXAGON_OPBATCH = '3072'; $env:GGML_HEXAGON_REPLAY = '1'; $env:GGML_HEXAGON_OPFUSION = '1'; $env:GGML_HEXAGON_VERBOSE = '0'; $env:GGML_HEXAGON_PROFILE = '0'
-$env:GGML_HEXAGON_MOE_TOPK_ALIAS = '0'; $env:GGML_HEXAGON_MM_SELECT = '2'; $env:GGML_HEXAGON_HEAD_PREFETCH = '0'; $env:GGML_HEXAGON_FA_SELECT = '1'; $env:GGML_HEXAGON_GDN_SELECT = '1'
+$env:GGML_HEXAGON_MOE_TOPK_ALIAS = '0'; $env:GGML_HEXAGON_MM_SELECT = '2'; $env:GGML_HEXAGON_HEAD_PREFETCH = '0'; $env:GGML_HEXAGON_FA_SELECT = '2'; $env:GGML_HEXAGON_GDN_SELECT = '2'   # 2 = prefill-capable kernels (the decode-tuned 1/1 made prompt processing ~20 tok/s instead of ~775); decode unaffected
 $env:GGML_HEXAGON_ROUTER_HVX = '1'; $env:LLAMA_LOGITS_TRACE = '0'
 $spec = '--spec-type none'
 if ($Mode -ne 'chat') {

@@ -91,3 +91,12 @@ Model ~19.4 GiB resident. `-c 32768`: only 10 of 40 layers are full attention (s
 - decisions shim (`test_decisions.py`, 12/12 checks): yes/no, 3-way choice and 5-level score examples all correct; probabilities sum to 1; label_mass 0.96-0.9997; reversing the option order keeps the choice (technical 0.99996 vs 0.99995). Latency per question 0.45-0.7 s (100-145 prompt tokens, one prefill, 0 generated); a 3-question call took 2.0 s wall.
   `cache_n` was 0 for every question: llama-server could not reuse the shared prefix (hybrid recurrent model), so each question re-prefills the whole prompt. Keep inputs short or batch questions about long inputs knowing the full input is re-prefilled per question (~780 tok/s on long inputs).
 - Server stop: the llama-server process lingers ~15 s after exit while memory is torn down; `stop-qwen` and the supervisor wait for that before releasing the NPU lock.
+
+## Context size and the prefill-speed gotcha (2026-10-01)
+
+- Server context is `-c 32768` (PI's `contextWindow` in `~\.pigent\models.json` must match). The model's native maximum is 262144. Only 10 of its 41 layers use full attention (2 KV heads, head dim 256), so the f16 KV cache costs ~20 KB/token:
+  32768 -> 0.6 GiB, 131072 -> 2.5 GiB, 262144 -> 5.0 GiB (plus a small fixed recurrent state). RAM is not the limit (model 19.4 GiB; ~37 GB free on an idle machine). Untested on the NPU: speed and correctness of attention at very long depth
+  (measured so far: decode 40.3 tok/s at depth 0, 35.9 tok/s at depth 2048, prefill 774 -> 745 t/s). Use `-Ctx 131072` and validate with a long prompt before trusting more.
+- **`GGML_HEXAGON_FA_SELECT` / `GDN_SELECT` must be 2 for a server** (set in start-qwen.ps1 since 2026-10-01). The decode-tuned value 1/1 (copied from the MTP benchmark script) made prompt processing ~20 tok/s (a 1623-token PI prompt took 82 s);
+  with 2/2 the same kind of prompt runs at ~700 tok/s and decode stays 40 tok/s.
+- PI is installed under Node LTS (`npm -g @earendil-works/pi-coding-agent`, 1.0.0) from 2026-10-01; the bun copy and the old standalone shim (`~\.localin\pi.cmd.bak`, pointing at pi-v0.85.1) were retired. Update with `npm update -g @earendil-works/pi-coding-agent`.

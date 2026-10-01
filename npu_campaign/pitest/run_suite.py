@@ -17,7 +17,13 @@ PKG = os.path.join(ROOT, os.environ['PITEST_PKG']) if os.environ.get('PITEST_PKG
 LOCK = os.path.join(ROOT, 'npu_campaign', '.npu.lock')
 HOME = os.path.expanduser('~')
 BUN = os.path.join(HOME, '.bun', 'bin', 'bun.exe')
-PI_CLI = os.path.join(HOME, '.bun', 'install', 'global', 'node_modules', '@earendil-works', 'pi-coding-agent', 'dist', 'cli.js')
+# PI is installed under Node LTS since 2026-10-01 (npm -g @earendil-works/pi-coding-agent); the old bun install is the fallback
+_NODE = os.path.join(os.environ.get('ProgramFiles', r'C:\Program Files'), 'nodejs', 'node.exe')
+_NPM_CLI = os.path.join(os.environ.get('APPDATA', os.path.join(HOME, 'AppData', 'Roaming')), 'npm', 'node_modules', '@earendil-works', 'pi-coding-agent', 'dist', 'cli.js')
+if os.path.exists(_NODE) and os.path.exists(_NPM_CLI):
+    BUN, PI_CLI = _NODE, _NPM_CLI   # BUN is just "the JS runtime executable" below
+else:
+    PI_CLI = os.path.join(HOME, '.bun', 'install', 'global', 'node_modules', '@earendil-works', 'pi-coding-agent', 'dist', 'cli.js')
 
 MODELS = {
     'qwen': dict(
