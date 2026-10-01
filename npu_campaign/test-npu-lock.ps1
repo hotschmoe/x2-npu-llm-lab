@@ -16,6 +16,7 @@ if ($Worker) {
             Start-Sleep -Milliseconds (Get-Random -Minimum 5 -Maximum 40)
             if ($fs) { $fs.Close(); Remove-Item -LiteralPath $flag -Force -ErrorAction SilentlyContinue }
         } finally { Exit-NpuLock }
+        Add-Content "$testDir\done.txt" "w$Id $i"
     }
     exit 0
 }
@@ -27,5 +28,6 @@ for ($w = 0; $w -lt $Workers; $w++) {
 }
 $ps | Wait-Process
 $v = if (Test-Path "$testDir\violations.txt") { @(Get-Content "$testDir\violations.txt").Count } else { 0 }
-"WORKERS=$Workers ITERS=$Iters VIOLATIONS=$v"
+$done = if (Test-Path "$testDir\done.txt") { @(Get-Content "$testDir\done.txt").Count } else { 0 }
+"WORKERS=$Workers ITERS=$Iters COMPLETED=$done/$($Workers * $Iters) VIOLATIONS=$v   (valid only if COMPLETED is full)"
 Remove-Item $testDir -Recurse -Force -ErrorAction SilentlyContinue
