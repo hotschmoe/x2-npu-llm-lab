@@ -1,0 +1,3 @@
+     22 [main] bash (1799644) child_copy: cygheap read copy failed, 0x800000000..0x80000EEB0, done 0, windows pid 1799644, Win32 error 299
+   4187 [main] bash 1765 child_copy: dll data read copy failed, 0x210247000..0x210260CB0, done 0, windows pid 1799644, Win32 error 299
+   5953 [main] bash 1765 C:\Program Files\Git\usr\bin\bash.exe: *** fatal error in forked process - couldn't create signal pipe, Win32 error 5

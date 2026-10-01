@@ -1,0 +1,68 @@
+## block gh-e-d2b 15:37
+m3i-gh-e-d2b-1 tps=33.83 acc=150/160 power=AC
+   slashes=0 words=262
+m3i-gh-e-d2b-2 tps=33.97 acc=150/160 power=AC
+   slashes=0 words=262
+m3i-gh-e-d2b-3 tps=34.02 acc=150/160 power=AC
+   slashes=0 words=262
+## block gh-e-d1b 15:50
+m3i-gh-e-d1b-1 tps=31.44 acc=89/106 power=AC
+   slashes=0 words=187
+m3i-gh-e-d1b-2 tps=31.75 acc=89/106 power=AC
+   slashes=0 words=187
+m3i-gh-e-d1b-3 tps=31.74 acc=89/106 power=AC
+   slashes=0 words=187
+## block pm1 16:06
+m3p-hello-plain tps=33.53 acc= power=AC
+m3p-hello-pm0 tps=32.10 acc=106/149 power=AC
+m3p-hello-pm0.5 tps=32.96 acc=101/126 power=AC
+m3p-hello-pm0.7 tps=31.69 acc=89/106 power=AC
+m3p-hello-pm0.85 tps=30.97 acc=78/90 power=AC
+m3p-json-plain tps=34.08 acc= power=AC
+m3p-json-pm0 tps=34.91 acc=116/139 power=AC
+m3p-json-pm0.5 tps=35.49 acc=116/130 power=AC
+m3p-json-pm0.7 tps=34.11 acc=110/120 power=AC
+m3p-json-pm0.85 tps=33.66 acc=104/108 power=AC
+## block fin-code-1 16:36
+m3z-code-r1-A tps=26.79 acc= power=AC
+m3z-code-r1-B tps=33.99 acc= power=AC
+m3z-code-r1-C tps=33.18 acc=124/131 power=AC
+m3z-code-r1-D tps=37.01 acc=124/131 power=AC
+m3z-code-r1-E tps=36.90 acc=123/129 power=AC
+m3z-code-r1-F tps=37.40 acc=159/169 power=AC
+## block fin-json-1 16:56
+m3z-json-r1-A tps=26.53 acc= power=AC
+m3z-json-r1-B tps=34.17 acc= power=AC
+m3z-json-r1-C tps=31.16 acc=116/139 power=AC
+m3z-json-r1-D tps=34.73 acc=116/139 power=AC
+m3z-json-r1-E tps=35.39 acc=116/130 power=AC
+m3z-json-r1-F tps=32.52 acc=151/173 power=AC
+## block fin-sky-1 17:15
+m3z-sky-r1-A tps=26.62 acc= power=AC
+m3z-sky-r1-B tps= acc= power=AC
+m3z-sky-r1-C tps= acc= power=AC
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+   (on battery, waiting 60 s)
+## block fin-rep-1 17:39
+m3z-rep-r1-A tps=26.63 acc= power=AC
+m3z-rep-r1-B tps=33.98 acc= power=AC
+m3z-rep-r1-C tps=33.00 acc=125/129 power=AC
+m3z-rep-r1-D tps=34.16 acc=125/129 power=AC
+m3z-rep-r1-E tps=35.82 acc=125/126 power=AC
+m3z-rep-r1-F tps=37.22 acc=166/173 power=AC
+## block fin-code-2 18:01
+m3z-code-r2-F tps=38.43 acc=159/169 power=AC
+m3z-code-r2-E tps=37.77 acc=123/129 power=AC
+m3z-code-r2-D tps=37.79 acc=124/131 power=AC
+m3z-code-r2-C tps=33.67 acc=124/131 power=AC
+m3z-code-r2-B tps=34.81 acc= power=AC
+m3z-code-r2-A tps=27.05 acc= power=AC

@@ -5,7 +5,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Label,
     [string]$Prompt = 'Hello',
-    [ValidateSet('none', 'mtp', 'ngram')][string]$Spec = 'none',
+    [ValidateSet('none', 'mtp', 'ngram', 'mtpngram')][string]$Spec = 'none',
     [ValidateRange(0, 8)][int]$DraftMax = 1,
     [double]$PMin = -1,
     [int]$Tokens = 128,
@@ -18,7 +18,8 @@ param(
     [ValidateSet(1, 2)][int]$GdnSelect = 1,
     [ValidateSet(1, 2)][int]$FaSelect = 1,
     [string]$ExtraEnv = '',   # "NAME=VAL;NAME2=VAL2"
-    [string]$ExtraArgs = ''
+    [string]$ExtraArgs = '',
+    [int]$TimeoutSec = 0      # mtp3: kill a hung run (spin-poll hang) after N seconds; 0 = wait forever
 )
 $ErrorActionPreference = 'Stop'
 if ($Label -notmatch '^[a-zA-Z0-9_.-]+$') { throw "Invalid label [$Label]" }
@@ -71,6 +72,7 @@ $specArgs = switch ($Spec) {
     'none'  { '--spec-type none' }
     'mtp'   { "--spec-type draft-mtp --spec-draft-n-max $DraftMax" }
     'ngram' { "--spec-type ngram-simple --spec-draft-n-max $DraftMax" }
+    'mtpngram' { "--spec-type ngram-simple,draft-mtp --spec-draft-n-max $DraftMax" }
 }
 if ($PMin -ge 0) { $specArgs += " --spec-draft-p-min $PMin" }
 $verbosity = if ($DeviceProfile -gt 0) { 5 } else { 4 }
@@ -78,7 +80,12 @@ $arguments = "-m `"$model`" -n $Tokens -c 1024 -b 128 -ub 128 -p `"$Prompt`" --s
 "LABEL=$Label PKG=$pkgDir LIB=$lib SPEC=$Spec DRAFTMAX=$DraftMax EXTRAENV=$ExtraEnv ARGS=$arguments" | Out-File "$base.cmd.txt" -Encoding utf8
 . (Join-Path $PSScriptRoot 'npu-lock.ps1'); Enter-NpuLock "run-mtp-speed.ps1 $Label"
 try {
+    if ($TimeoutSec -gt 0) {
+        $run = Start-Process -FilePath (Join-Path $pkgDir 'bin\llama-cli.exe') -ArgumentList $arguments -PassThru -WindowStyle Hidden -RedirectStandardOutput "$base.log" -RedirectStandardError "$base.log.err"
+        if (-not $run.WaitForExit($TimeoutSec * 1000)) { Stop-Process -Id $run.Id -Force; "RUN_TIMEOUT after $TimeoutSec s (killed pid $($run.Id))"; $run.WaitForExit(30000) | Out-Null; throw "run timed out" }
+    } else {
     $run = Start-Process -FilePath (Join-Path $pkgDir 'bin\llama-cli.exe') -ArgumentList $arguments -PassThru -Wait -WindowStyle Hidden -RedirectStandardOutput "$base.log" -RedirectStandardError "$base.log.err"
+    }
 } finally { Exit-NpuLock }
 "RUN_EXIT=$($run.ExitCode)"
 if ($run.ExitCode -ne 0) { throw "run failed: $($run.ExitCode)" }

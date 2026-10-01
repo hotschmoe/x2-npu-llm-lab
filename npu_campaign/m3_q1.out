@@ -1,0 +1,5 @@
+RUN 1 plain tok/s=28.14 accept=-
+RUN 2 mtp tok/s=30.13 accept=106/149
+RUN 3 plainspin tok/s=28.71 accept=-
+RUN 4 mtpspin tok/s=31.61 accept=106/149
+RUN 5 mtpspin tok/s=31.39 accept=106/149

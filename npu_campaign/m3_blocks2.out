@@ -1,0 +1,10 @@
+## block ng-code1
+m3e-ng-code1-mng tps=32.21 acc=128/143
+m3e-ng-code1-mtp tps=32.57 acc=124/131
+m3e-ng-code1-plain tps=26.37 acc=
+## block ng-rep2
+m3e-ng-rep2-mng tps=33.63 acc=144/176
+m3e-ng-rep2-mtp tps=33.90 acc=125/129
+m3e-ng-rep2-plain tps=27.09 acc=
+npu_campaign/m3_blocks.sh: line 72: unexpected EOF while looking for matching `"'
+## block base2

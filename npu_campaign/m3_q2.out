@@ -1,0 +1,4 @@
+== A. synthetic acceptance ceiling (SPOOF: output invalid), dmax 1, block poll
+     19 [main] bash (904820) child_copy: cygheap read copy failed, 0x800000000..0x80000E940, done 0, windows pid 904820, Win32 error 299
+   2463 [main] bash 1766 child_copy: dll data read copy failed, 0x210247000..0x210260CB0, done 0, windows pid 904820, Win32 error 299
+   4239 [main] bash 1766 C:\Program Files\Git\usr\bin\bash.exe: *** fatal error in forked process - couldn't create signal pipe, Win32 error 5

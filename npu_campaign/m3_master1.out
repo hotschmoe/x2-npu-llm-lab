@@ -1,0 +1,5 @@
+== profiles
+profiles done
+== A. synthetic acceptance ceiling (SPOOF, output invalid), dmax1, block poll, Hello256
+m3a-synth1.0 tps=35.34 acc=127/127
+m3a-synth0.85 tps=32.92 acc=116/139

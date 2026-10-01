@@ -1,0 +1,29 @@
+## block gh-e-d2a 13:24
+m3i-gh-e-d2a-1 tps=25.24 acc=150/160 power=BATT
+   slashes=0 words=262
+m3i-gh-e-d2a-2 tps=26.38 acc=150/160 power=BATT
+   slashes=0 words=262
+m3i-gh-e-d2a-3 tps=24.39 acc=150/160 power=BATT
+   slashes=0 words=262
+## block gh-base-d2a 13:48
+m3i-gh-base-d2a-1 tps=24.29 acc=150/160 power=BATT
+   slashes=0 words=262
+m3i-gh-base-d2a-2 tps=14.26 acc=68/350 power=BATT
+   slashes=1 words=163
+m3i-gh-base-d2a-3 tps=14.12 acc=67/355 power=BATT
+   slashes=1 words=162
+## block gh-e-d1a 14:00
+m3i-gh-e-d1a-1 tps=24.41 acc=89/106 power=BATT
+   slashes=0 words=187
+m3i-gh-e-d1a-2 tps=24.61 acc=89/106 power=BATT
+   slashes=0 words=187
+m3i-gh-e-d1a-3 tps=28.29 acc=89/106 power=BATT
+   slashes=0 words=187
+## block gh-base-d1a 14:22
+m3i-gh-base-d1a-1 tps=20.16 acc=20/229 power=AC
+   slashes=1 words=90
+m3i-gh-base-d1a-2 tps=21.44 acc=31/210 power=AC
+   slashes=1 words=107
+m3i-gh-base-d1a-3 tps=21.92 acc=35/203 power=AC
+   slashes=1 words=117
+## block gh-e-d2b 15:04

@@ -1,0 +1,4 @@
+## block ppl4
+1.32.524.756 I perplexity: calculating perplexity over 4 chunks, n_ctx=512, batch_size=512, n_seq=1
+1.33.351.987 I perplexity: 0.83 seconds per pass - ETA 1.35.773.812 I Final estimate: PPL = 12.2553 +/- 1.13001
+## block ppl6
