@@ -6,7 +6,7 @@ One consumer, one model process, one port. Everything here lives in `serve\`; no
 
 ```
 serve\start-qwen.cmd -Mode chat          # plain decode, http://127.0.0.1:8080
-serve\start-qwen.cmd -Mode code          # MTP d1 (+p-min 0.5) for code / JSON / copy-heavy output
+serve\start-qwen.cmd -Mode code          # MTP d1 (+p-min 0.5) for code / JSON / copy-heavy output  (no longer faster than chat on the s14 build: prefer chat)
 serve\health.ps1                          # status, mode, lock owner, 1-token round trip
 serve\stop-qwen.cmd                       # stops the server, releases the NPU lock
 ```
@@ -34,7 +34,9 @@ Common flags: `--device HTP0 -ngl 99 -fit off --load-mode none -b 2048 -ub 1024 
 
 ## Expected speeds (installed build, AC power; from OVERNIGHT_SUMMARY / MTP3_LOG, 256-token greedy)
 
-- plain decode ~36 tok/s (34-36 depending on prompt), prefill pp1024 ~780 tok/s (ub 1024).
+- **Installed build 2026-10-01 (qwen4 s14, padded Q4_0 tiles + contiguous weight DMA): plain decode ~40 tok/s (Hello 40.2, code 40.2), prefill pp1024 ~780 tok/s (ub 1024; prefill not re-measured on s14). With s14 plain decode matches or beats MTP everywhere (MTP d1: Hello 35.2, code 40.2, p-min 0.5 code 39.8): USE `-Mode chat` FOR EVERYTHING; `-Mode code` is kept but no longer pays.**
+- Older numbers below (36 tok/s plain, MTP +0-8%) are from the previous build (pkg-final2-f1).
+- (previous build) plain decode ~36 tok/s (34-36 depending on prompt), prefill pp1024 ~780 tok/s (ub 1024).
 - MTP d1: code 37.4 (plain 34.4), +p-min 0.5 37.3; JSON tool call 34.7 -> 35.4 with p-min 0.5 (plain 34.2); copy-heavy 34.2 -> 35.8 (plain 34.0). Gain is 0-8%: use it only for code-like output.
 - Server-measured numbers from this setup: see "Measured" at the bottom.
 

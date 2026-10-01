@@ -120,3 +120,33 @@ Warnings / corrections:
 un_suite.py --model qwen --reps 3`): Qwen 33/33, Nemotron Lightning 32/33.
 - Not done: Q4_0 MTP head (+1.0% PPL, do not use), temperature-0.6 acceptance, M=2 fusion extension, ops650 host-knob runs (OPBATCH 1280; queue scripts kept), prefill A/B of the tracker fix.
 - Old worktrees (prefill2, decode2, mamba, mtp, ops650, mtp3, int4u8, upstream, rollup, merged2) can be removed; all content is in `npu-htp-decode`.
+
+## UPDATE 2026-10-01 morning: fourth install, `qwen4` s14 (plain decode ~40 tok/s) - CURRENT STATE
+
+Installed = `llama.cpp-hexagon` branch `npu-htp-decode` = `qwen4` tip a21dc7f (on top of the third install: upstream sync + ops650 + mtp3). Package `npu_campaign/pkg-qwen4-s14` via `install-s14.ps1`
+(skel 653253A7, catalog 666FBFB6, host ggml-hexagon.dll E646F99F, llama.dll D2BB8AB1). Rollback: `npu_campaign/backup-s14-install-prechange` (= previous install, also available whole as `npu_campaign/pkg-final2-f1`).
+Verified on the installed default path: Qwen PPL 12.1307 (4x512).
+
+What qwen4 found/changed (all default ON in s14, each with an env opt-out `=0`): GGML_HEXAGON_MV_XPIPE (flat-unit cross-expert DMA pipeline for decode/verify expert matmuls), GGML_HEXAGON_Q4C
+(Q4_0/IQ4_NL tiles padded to 640 B in DDR so each tile row is ONE contiguous DMA descriptor, original dot kernel kept; contiguous Q8_0 kernels, one-descriptor DMA for Q4_1/Q6_K; costs ~11% more Q4_0 memory),
+GGML_HEXAGON_GDN_SNAPDMA (async DMA for verify recurrent-state snapshots), GGML_HEXAGON_GDN_STATE_MAXT (state gather folded into the GDN op, T<=4). Root cause of the old Q4-vs-Q8 bandwidth gap
+(70-98 vs 125-141 GB/s): the 2D weight DMA descriptor (64 rows x 576 B) costs ~12 ns per row; contiguous descriptors reach 133-136 GB/s. Off by default: GDN_RB (-3.6% on one op).
+Spin-poll: the infinite dspqueue_read loop is now a bounded spin (400 ms) + blocking-read fallback + 120 s watchdog; BUILT BUT NOT STRESS-TESTED: `GGML_HEXAGON_OPPOLL=1` is still NOT recommended.
+
+Interleaved ABBA x3, AC, 256 tokens, vs the previous install (tok/s means): plain Hello 35.26 -> 40.23 (+14.1%), plain code 35.02 -> 40.16 (+14.7%); MTP d1 Hello 33.08 -> 35.22, code 37.47 -> 40.15;
+MTP d1 + p-min 0.5 Hello 33.28 -> 35.56, code 37.86 -> 39.80. => on this build plain decode matches or beats MTP everywhere: USE PLAIN (serve\start-qwen.cmd -Mode chat). MTP verify (M=2) batch 43.3 -> 41.35 ms
+(experts at M=2 touch up to 2x the expert bytes, the structural limit of MoE speculation).
+Gates on the s14 package (qwen4): PPL 12.1307 / 13.3331 exact; plain and MTP target logits bit-identical vs pkg-final2-f1 on Hello and code (128/128 rows), draft rows 72/72 and 66/66; edge check identical (6..520 words).
+Prefill on s14 was NOT A/B-measured (my A/B was interrupted by a laptop sleep and then by unplugging); the 2048-context pp/tg numbers are in the section below when measured on AC.
+
+Also delivered overnight: `serve\` (start-qwen.cmd -Mode chat|code, decisions_shim.py = /v1/decisions-style typed-question endpoint, smoke.ps1; see serve\README.md, SERVE_LOG.md; NPU lock is held while the server runs),
+`npu_campaign\pitest` (PI-agent tool-call suite: Qwen 33/33, Nemotron Lightning 32/33), `MODEL_CHOICE_AGENTIC.md` (Qwen chosen), `DEEPGEMM_ASCEND_LEARNINGS.md`, `NEMOTRON_NPU.md`
+(Nemotron 3 Nano / 3.5 Lightning run fully on the NPU, pp1024 ~954/970, tg ~32/27.5), negative results: int4xu8 (INT4U8_LOG.md), Q4_0 tile layout rework (LAYOUT_LOG.md: decode dot -26%/-44% per tile but prefill +7% dequant => -3.5% pp, not worth it;
+code stays on branch `layout`), MTP at chat prose (below plain).
+
+Operational lessons (this night): (1) ONE model process at a time on this 48 GB machine: two overlapping runs (qwen4, 23:17) pinned ~36 GB of NPU memory, the machine became unusable and the killed processes took ~15 min to exit.
+`npu_campaign/ram-guard.py` (kills a second llama-* process by exact PID) was written for this; npu-lock.ps1 has a small race (New-Item), lockrun.py is the atomic lock; a rewrite of npu-lock.ps1 was tried and reverted (flaky).
+(2) Never kill processes by command-line pattern from inside the same shell (the pattern matches your own command). (3) The laptop sleeps when unattended: timers and benchmarks stall (03:51-09:19 lost); keep it awake or on AC for long runs.
+(4) Gemma 4 produces garbage on the NPU (unresolved; ignore every Gemma number in these docs).
+Worktrees were removed (all branches kept in git: prefill2, decode2, mamba, mtp-speedup, ops650, mtp3, int4u8, upstream-sync, rollup, merged2, final, layout, qwen4, npu-htp-decode).
+Not done: temp-0.6 MTP acceptance, 30-run spin-poll stress, M=2..3 extension of the SHEXP+EP / RMS_NORM+SCALE fusions (judged ~0.3-0.4 ms each), prefill A/B of s14, `npu-lock.ps1` atomicity.
