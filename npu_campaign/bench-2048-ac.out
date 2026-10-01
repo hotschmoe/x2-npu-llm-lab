@@ -1,0 +1,15 @@
+POWER=AC  2026-10-01 09:54  pkgs=llama.cpp-hexagon\pkg-wos, npu_campaign\pkg-final2-f1  rounds=2 reps=2
+
+Pkg           Test          Mean   Min   Max N
+---           ----          ----   ---   --- -
+pkg-final2-f1 pp2048       776.7   773 780.5 2
+pkg-wos       pp2048       774.3 772.1 776.5 2
+pkg-final2-f1 pp2048@d2048 747.7 746.6 748.8 2
+pkg-wos       pp2048@d2048   745 743.6 746.4 2
+pkg-final2-f1 tg128           35  34.9    35 2
+pkg-wos       tg128         40.3  39.8  40.8 2
+pkg-final2-f1 tg128@d2048   32.1  31.7  32.6 2
+pkg-wos       tg128@d2048   35.9  35.8    36 2
+
+
+BENCHDONE

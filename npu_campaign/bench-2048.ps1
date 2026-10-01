@@ -1,10 +1,12 @@
 # Quick pp/tg benchmark at 2048 context for the Qwen3.6-35B-A3B Q4_0 model on HTP0: pp2048 (prompt processing), tg128 at depth 0 and at depth 2048.
 # Interleaved A,B,A,B between two packages (default: installed pkg-wos vs previous build pkg-final2-f1). Takes the NPU lock per run. AC power only.
 # Usage: powershell -File bench-2048.ps1 [-Rounds 2] [-Reps 2] [-Pkgs 'llama.cpp-hexagon\pkg-wos','npu_campaign\pkg-final2-f1']
-param([int]$Rounds = 2, [int]$Reps = 2, [string[]]$Pkgs = @('llama.cpp-hexagon\pkg-wos', 'npu_campaign\pkg-final2-f1'), [string]$Model = 'models\gguf\qwen36-35b-a3b-q4_0\Qwen_Qwen3.6-35B-A3B-Q4_0.gguf', [int]$UB = 1024)
+param([int]$Rounds = 2, [int]$Reps = 2, [string[]]$Pkgs = @('llama.cpp-hexagon\pkg-wos', 'npu_campaign\pkg-final2-f1'), [string]$Model = 'models\gguf\qwen36-35b-a3b-q4_0\Qwen_Qwen3.6-35B-A3B-Q4_0.gguf', [int]$UB = 1024, [switch]$AllowBattery)
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
-if (-not (Get-CimInstance -Namespace root\WMI -ClassName BatteryStatus).PowerOnline) { throw 'on battery: timings invalid' }
+$power = if ((Get-CimInstance -Namespace root\WMI -ClassName BatteryStatus).PowerOnline) { 'AC' } else { 'BATTERY' }
+if ($power -eq 'BATTERY' -and -not $AllowBattery) { throw 'on battery: timings invalid (use -AllowBattery for an explicit battery measurement)' }
+"POWER=$power  $(Get-Date -Format 'yyyy-MM-dd HH:mm')  pkgs=$($Pkgs -join ', ')  rounds=$Rounds reps=$Reps"
 . (Join-Path $PSScriptRoot 'npu-lock.ps1')
 $rows = @()
 for ($r = 1; $r -le $Rounds; $r++) {

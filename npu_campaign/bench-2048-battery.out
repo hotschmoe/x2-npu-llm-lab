@@ -1,0 +1,10 @@
+POWER=BATTERY  2026-10-01 09:44  pkgs=llama.cpp-hexagon\pkg-wos  rounds=1 reps=2
+
+Pkg     Test          Mean   Min   Max N
+---     ----          ----   ---   --- -
+pkg-wos pp2048       689.4 689.4 689.4 1
+pkg-wos pp2048@d2048 659.2 659.2 659.2 1
+pkg-wos tg128         25.8  25.8  25.8 1
+pkg-wos tg128@d2048   21.4  21.4  21.4 1
+
+

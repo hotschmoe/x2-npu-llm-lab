@@ -150,3 +150,13 @@ Operational lessons (this night): (1) ONE model process at a time on this 48 GB 
 (4) Gemma 4 produces garbage on the NPU (unresolved; ignore every Gemma number in these docs).
 Worktrees were removed (all branches kept in git: prefill2, decode2, mamba, mtp-speedup, ops650, mtp3, int4u8, upstream-sync, rollup, merged2, final, layout, qwen4, npu-htp-decode).
 Not done: temp-0.6 MTP acceptance, 30-run spin-poll stress, M=2..3 extension of the SHEXP+EP / RMS_NORM+SCALE fusions (judged ~0.3-0.4 ms each), prefill A/B of s14, `npu-lock.ps1` atomicity.
+
+### 2048-context pp/tg of the installed s14 build (2026-10-01, `npu_campaign/bench-2048.ps1`; llama-bench -p 2048 -n 128 -d 0,2048 -ub 1024, HTP0, 2 interleaved rounds x 2 reps on AC; battery: single run)
+| | battery (s14) | AC s14 (installed) | AC previous build (pkg-final2-f1) |
+| --- | ---: | ---: | ---: |
+| pp2048 (t/s) | 689 | 774.3 | 776.7 |
+| pp2048 @ depth 2048 | 659 | 745.0 | 747.7 |
+| tg128 (tok/s) | 25.8 | 40.3 | 35.0 |
+| tg128 @ depth 2048 | 21.4 | 35.9 | 32.1 |
+=> s14 prefill unchanged (-0.3%), decode +15% (+12% at 2048 depth). On battery decode is ~36% slower and prefill ~11% slower than on AC (keep the laptop plugged in for any timing or heavy use).
+Raw output: npu_campaign/bench-2048-ac.out, bench-2048-battery.out. The RAM watchdog (ram-guard.py) was stopped after the agents finished; restart it with `python npu_campaign/ram-guard.py` if several agents share the NPU again.
