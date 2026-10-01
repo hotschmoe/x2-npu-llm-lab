@@ -94,3 +94,28 @@ Interleaved A/B, merged vs previously installed (3 rounds each):
 Gates on the merged build: Qwen PPL 12.1307 (4x512) and 13.3331 (16 chunks) exact; fusion on/off edge check 6/6; MTP/plain full-vocab logits bit-identical to decode2's fix build (128 rows, plain-plain, mtp-mtp, plain-mtp); Nano PPL 16.1617 vs 16.1310 (KLD vs CPU 0.00527 vs 0.00516, inside the +-0.00024 error: noise floor). Installed default path re-checked: PPL 12.1307.
 
 Defaults: router stays on HVX (bit-exact); set `GGML_HEXAGON_ROUTER_HVX=0` for the HMX router (+10-11% prefill on Qwen, PPL +0.25%). New: SSM_SCAN on HTP0 (Nemotron), Q5_1 shared-expert repack to Q8_0, cache-flush fix. Target Nemotron is 3.5 Lightning (see NEMOTRON_NPU.md). Not done: decode2's `qq_pending.sh` (Q4_0 MTP head, garbage-output hunt), NPU MTP speed on Lightning, Nemotron ub sweep. Reference `.kld` for Nano regenerated at npu_campaign/mamba-corr/cpu_nemo.kld (267 MB, deletable).
+
+## UPDATE 2026-09-30 evening: third install (upstream sync + ops650 decode work + mtp3), supersedes the "second merge" numbers above
+
+Installed = `llama.cpp-hexagon` branch `npu-htp-decode` = `final` (tip = merge of `mtp3` into `rollup` = `upstream-sync` (origin/master 19e28a2 of 2026-09-29, 78 upstream commits) + `ops650`). Package `npu_campaign/pkg-final2-f1` via `install-final2.ps1` (host ggml-hexagon.dll 70BB6933, skel 9F88BC20, catalog 8E7F9624, llama.dll 9624DDE5). Rollback: `npu_campaign/backup-final2-install-prechange` (the second-merge state: merged2 ce75353).
+
+Interleaved A/B vs the previous install (2 rounds; this machine on AC):
+| | previous | now |
+| --- | ---: | ---: |
+| Plain decode (Hello, 256 tok) | 26.94 tok/s | **36.02 (+33.7%)** |
+| Qwen pp1024 ub1024 | 751 | 778 (+3.5%) |
+| MTP decode, Hello (acceptance 106/149) | 28.92 | 33.13 (but plain is now faster: use plain for chat) |
+mtp3 matrix (separate interleaved blocks, 256 tokens, greedy; code 2 rounds, others 1 round, indicative): code plain 34.4 / MTP d1 37.4 / +p-min 0.5 37.3 / gated d2 37.9; JSON tool call plain 34.2 / MTP 34.7 / +p-min 0.5 35.4; copy-heavy plain 34.0 / MTP 34.2 / +p-min 0.5 35.8 / gated d2 37.2. Recommendation: plain for chat prose; MTP (`--spec-type draft-mtp --spec-draft-n-max 1`, `LLAMA_MTP_FUSED_CATCHUP=1`, `LLAMA_MTP_DRAFT_VOCAB=65536`, `--spec-draft-p-min 0.5`) for code / structured / copy-heavy output. Cost model: verify step M=2 is 43.7 ms DSP vs plain 26.7 ms; extending the M=1-only SHEXP+EP / RMS_NORM+SCALE fusions to M=2..3 is the next MTP lever (~2 ms).
+
+Where the decode speed came from (ops650): the DSP dirty-range tracker cost 2.8-3.2 us on every op (O(64x64) merge twice per op; ~4 ms/token): now incremental; vgather conv-window (WIN 48.8 -> 10.5 us); four matchers disabled since 09-26 re-enabled (exact after the flush fix); SILU+MUL and conv SILU-fold fusions; graph 1384 -> 994 ops. FastRPC dispatch itself is NOT a bottleneck (0.38 us/op fork/join).
+
+Root causes found this round: (1) hex_l2flush 64-byte step (decode2): plain-path instability AND the earlier garbage output in draft-max 2 / p-min / multi-slot replay configs (mtp3: 12/12 clean after, garbage before); (2) HVX/HMX int4 x u8 is no-go (int4inform: HMX does int4 x u8 exactly but accumulator is only readable as u16, per-block Q4_0 scales must be applied on HVX, gain <= ~3% at ub1024).
+
+Gates on the installed build: Qwen PPL 12.1307 / 13.3331 exact; fusion on/off edge check identical (6/40/130/260/520 words; 900 skipped); MTP/plain full-vocab logits bit-identical vs the previous install (128 rows, draft rows too).
+
+Warnings / corrections:
+- **Do NOT use `GGML_HEXAGON_OPPOLL=1`** (earlier listed as +1.9% optional): it hung twice in ~14 spin runs at 100% CPU (the dspqueue_read loop in flush_pending retries forever with no timeout); a hung run holds the NPU lock. The earlier "+9% / +13% MTP" and "spin" numbers above are superseded.
+- **Gemma 4 produces garbage on the NPU** (every output token soup, even at temp 0; coherent on CPU). The Gemma speed numbers in this document and PREFILL_CAMPAIGN.md (874 -> 984 etc.) measure a model that is not working: ignore them. "Greedy identical" checks between NPU builds cannot catch this. Unresolved, out of scope (decision: skip Gemma).
+- Model choice: Qwen3.6-35B-A3B is the focus (MODEL_CHOICE_AGENTIC.md). PI-agent tool-call suite (npu_campaign/pitest, run: `python npu_campaign\pitestun_suite.py --model qwen --reps 3`): Qwen 33/33, Nemotron Lightning 32/33.
+- Not done: Q4_0 MTP head (+1.0% PPL, do not use), temperature-0.6 acceptance, M=2 fusion extension, ops650 host-knob runs (OPBATCH 1280; queue scripts kept), prefill A/B of the tracker fix.
+- Old worktrees (prefill2, decode2, mamba, mtp, ops650, mtp3, int4u8, upstream, rollup, merged2) can be removed; all content is in `npu-htp-decode`.
