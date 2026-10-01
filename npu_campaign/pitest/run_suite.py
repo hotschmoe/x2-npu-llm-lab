@@ -13,7 +13,7 @@ import argparse, json, os, re, shutil, subprocess, sys, tempfile, time, urllib.r
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-PKG = os.path.join(ROOT, 'llama.cpp-hexagon', 'pkg-wos')
+PKG = os.path.join(ROOT, os.environ['PITEST_PKG']) if os.environ.get('PITEST_PKG') else os.path.join(ROOT, 'llama.cpp-hexagon', 'pkg-wos')   # qwen4: PITEST_PKG overrides the package (relative to the repo root)
 LOCK = os.path.join(ROOT, 'npu_campaign', '.npu.lock')
 HOME = os.path.expanduser('~')
 BUN = os.path.join(HOME, '.bun', 'bin', 'bun.exe')
@@ -269,10 +269,12 @@ def start_server(args, tag):
     env = dict(os.environ)
     for k in CLEAR_ENV: env.pop(k, None)
     env.update(m['env'])
+    for kv in filter(None, os.environ.get('PITEST_ENV', '').split(';')):   # qwen4: PITEST_ENV='K=V;K=V' extra server env
+        k, v = kv.split('=', 1); env[k] = v
     env['ADSP_LIBRARY_PATH'] = os.path.join(PKG, 'lib') + ';'
     logp = os.path.join(HERE, 'logs', f'server-{tag}.log')
     os.makedirs(os.path.dirname(logp), exist_ok=True)
-    cmd = [os.path.join(PKG, 'bin', 'llama-server.exe'), '-m', os.path.join(ROOT, m['gguf']), '--host', '127.0.0.1', '--port', str(args.port),
+    cmd = [os.path.join(PKG, 'bin', 'llama-server.exe'), '-m', os.path.join(ROOT, os.environ.get('PITEST_GGUF') or m['gguf']), '--host', '127.0.0.1', '--port', str(args.port),
            '--alias', 'local-model'] + (['--device', 'none', '-ngl', '0'] if args.cpu else ['--device', 'HTP0', '-ngl', '99', '-fit', 'off', '--load-mode', 'none']) + ['-c', str(args.ctx),
            '-b', '2048', '-ub', '1024', '-t', '8' if args.cpu else '4', '-np', '1', '--cache-prompt', '--metrics', '--jinja', '--reasoning', args.reasoning] + m['sampling'] + args.server_extra
     logf = open(logp, 'ab')

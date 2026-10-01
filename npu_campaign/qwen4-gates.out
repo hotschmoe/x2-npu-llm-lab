@@ -1,0 +1,35 @@
+  [ref-plain] 1.29.494.062 I slot print_timing: id  0 | task 0 |        eval time =    3639.03 ms /   128 tokens (   28.65 ms per token,    34.90 tokens per second)
+  [cand-plain] RUN_EXIT=0
+  [cand-plain] 1.26.069.147 I slot print_timing: id  0 | task 0 | prompt eval time =     178.15 ms /    13 tokens (   13.70 ms per token,    72.97 tokens per second)
+  [cand-plain] 1.26.069.148 I slot print_timing: id  0 | task 0 |        eval time =    3703.11 ms /   128 tokens (   29.16 ms per token,    34.30 tokens per second)
+GATE ref-plain vs cand-plain : exit=0 :: step=4 rows=0/0 bits_equal=True nmse=0 max_abs=0 top=353/353 scores=24.0878868/24.0878868 candidate_ref_top_score=24.0878868 | first_bit_difference=None first_raw_argmax_difference=None | compared_rows=128 reference_rows=128 candidate_rows=128
+  [ref-plain] 1.29.774.859 I slot print_timing: id  0 | task 0 |        eval time =    3746.62 ms /   128 tokens (   29.50 ms per token,    33.90 tokens per second)
+  [cand-plain] RUN_EXIT=0
+  [cand-plain] 1.28.145.537 I slot print_timing: id  0 | task 0 | prompt eval time =     184.85 ms /    13 tokens (   14.22 ms per token,    70.33 tokens per second)
+  [cand-plain] 1.28.145.538 I slot print_timing: id  0 | task 0 |        eval time =    3641.62 ms /   128 tokens (   28.67 ms per token,    34.87 tokens per second)
+GATE ref-plain vs cand-plain : exit=0 :: step=4 rows=0/0 bits_equal=True nmse=0 max_abs=0 top=353/353 scores=24.0878868/24.0878868 candidate_ref_top_score=24.0878868 | first_bit_difference=None first_raw_argmax_difference=None | compared_rows=128 reference_rows=128 candidate_rows=128
+GATE s7 hello plain (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s9 hello plain (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s10 hello mtp (target rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4g-s10-hello-mtp.logits.bin' 
+GATE s10 hello mtp (draft rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4g-s10-hello-mtp.logits.bin' 
+GATE s8 hello plain (target rows) :: compared_rows=128 reference_rows=128 candidate_rows=128
+GATE s10all hello mtp (target rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4g-s10all-hello-mtp.logits.bin' 
+GATE s10all hello mtp (draft rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4g-s10all-hello-mtp.logits.bin' 
+GATE s10all hello plain (target rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4g-s10all-hello-plain.logits.bin' 
+GATE s10all (xp + Q4C=3 branchy kernels + GDN_SNAPDMA) hello mtp (target rows, verify M=2): bit-identical 128/128 vs pkg-final2-f1 (manual compare)
+GATE s12 hello plain (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s12 hello mtp (target rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4ref-hello-mtp.logits.bin' 
+GATE s12 hello mtp (draft rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4ref-hello-mtp.logits.bin' 
+GATE s12 hello mtp (target rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4g-s12-hello-mtp.logits.bin' 
+GATE s12 hello mtp (draft rows) exit=0 ::          ^^^^^^^^^^^^^^^^ FileNotFoundError: [Errno 2] No such file or directory: 'npu_campaign/mtp-speed/q4g-s12-hello-mtp.logits.bin' 
+GATE s13 hello plain (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s13 hello mtp (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s13 hello mtp (draft rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=72 reference_rows=72 candidate_rows=72 
+GATE s13st hello mtp (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s13st hello mtp (draft rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=72 reference_rows=72 candidate_rows=72 
+GATE s14 hello plain (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s14 hello mtp (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s14 hello mtp (draft rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=72 reference_rows=72 candidate_rows=72 
+GATE s14 code plain (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s14 code mtp (target rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=128 reference_rows=128 candidate_rows=128 
+GATE s14 code mtp (draft rows) exit=0 :: first_bit_difference=None first_raw_argmax_difference=None compared_rows=66 reference_rows=66 candidate_rows=66 
