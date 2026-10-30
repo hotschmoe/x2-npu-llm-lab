@@ -58,3 +58,66 @@ all ggml worker threads 0.000 (also with -t 1/2 and --poll 0: tok/s unchanged 4.
 llama-bench (-p 16,256 -n 32 -r 2, ABBA, one lock hold): topk-c pp16 45.75/45.32, pp256 235.57/239.97, tg32 10.78/10.91; all pp16 46.33/46.73, pp256 242.87/239.47, tg32 11.25/11.15 (+2.2% / +1.4% / +3.2%).
 GDN snapshot DMA op-level (perf, 32 heads x S_v 128 x 16 tokens): K=6 577.6 -> 498.1 us (-13.8%), K=16 659.9 -> 532.6 us (-19.3%), K=1 unchanged (280 -> 278). Only used when the rollback branch (K>1) lands in clover.
 GDN failure list (K=1, n_tokens >= 64, HMX chunked kernel) identical on topk-c and all: 16 fails each, pre-existing.
+
+## 2026-10-30 10:40 WRAP-UP (stall recovery by the coordinator at 09:50)
+Branch `clover-port` tip bcce4b9 = merge of `clover` e695295 (rollback + trace + topk) with: 00d7f9b dirty-range, 82354b9 Q4_0 tile pad, d1055ae bounded OPPOLL spin, 826e193 GDN snapshot DMA,
+e1b35dd test-backend-ops perf cases, 85ceeab graph cache + HOSTSTAT. Package of the tip: pkg-clover-port-final (host ggml-hexagon.dll AEE6CA2E, skel ADE7C252).
+
+### The ab3b-3 hang (orphan, 09:16)
+ab3b-3-allpoll log stops at "llama threadpool init" 12 s after start. Cause of the ORPHAN: I stopped background tasks of my own session (TaskStop / Stop-Job) at ~09:13-09:16; the old blk.ps1 launched
+clover-run.ps1 in-process but the parent died, leaving the child running with no lock. Was the hang itself OPPOLL=1? Evidence says no: all 6 other OPPOLL=1 starts (ab3a #1 #3, ab3b #2 + the two OPPOLL arms
+before it) came up fine, the killed run overlapped bf16's HTP0 runs for 34 min (two processes opening HTP0 / mapping ~20 GB each) and it stopped before the first HTP graph - the same signature as the earlier
+two-process overlaps in this campaign. Not provable without a repeat; fin-c below repeats OPPOLL=1 on the final package (one clean run), and the new scripts kill their child on timeout.
+Also: a 2 h 17 min "gc4096 0.031 tok/s" row (gca #2) was the laptop sleeping inside my lock hold (cpu.csv has ~600 samples in 8287 s) - discard it; the graph-cache A/B was redone in fin-c.
+New launch discipline (coordinator item 3): clover-port/blk2.ps1, tbo.ps1, bench.ps1, clover-kld.ps1 all do Enter-NpuLock -> Start-Process + WaitForExit(timeout) -> finally kill the child -> Exit-NpuLock in ONE process.
+(A killed parent can still leave a running child - Windows has no parent-death signal for Start-Process - but a stale lock is released by the 2-minute dead-owner rule and the child is bounded by RunTimeoutSec.)
+
+### Gates on pkg-clover-port-final (clover merged with rollback)
+| gate | result |
+| --- | --- |
+| clover-kld, new default reference (F32-dense CPU) | **KLD 0.019871, same-top 93.137%, PPL 15.083178** = bit-identical to m2/M0 baseline (0.019871 / 93.137%) -> GATE PASS |
+| old reference (cpu-kld-base.bin) on dr / pad / all | 0.047923 / 89.216% / 15.083178 on all three = identical to topk-c |
+| GATED_DELTA_NET_CACHE_FUSION (K>1: dst_cache + snapshots, SNAP kernel; env GDN_SNAPDMA 1 and 0) | 5/5 pass on both (all pkg) and on final (K>1 now really used by rollback) |
+| GATED_DELTA_NET | 27/43 on topk-c, all and final - the same 16 K=1/n>=64 HMX-chunked failures (pre-existing) |
+| MUL_MAT_ID (pad) | 796/796 |
+
+### Feature table (Clover, HTP0, draft-self exact verify, 256 tok, ABBA in one lock hold, output hash identical where the algorithm is the same)
+| feature | commit | speed vs topk-c (clean pairs) | verdict |
+| --- | --- | --- | --- |
+| incremental dirty-range merge | 00d7f9b | 5.121 -> 5.244 (+2.4%) | MERGE |
+| Q4_0/IQ4_NL tile pad 640 B (contiguous weight DMA) | 82354b9 | dr 5.244 -> pad 5.281 (+0.7% more, +3.1% total) | MERGE (+11% weight RAM for Q4_0/IQ4_NL: Clover 18.2 -> ~20 GiB) |
+| GDN snapshot DMA | 826e193 | op: K=6 -14%, K=16 -19% (590 -> 498 us / 660 -> 533 us); e2e only with rollback (see fin-b/fin-c) | MERGE |
+| bounded OPPOLL spin + watchdog (code) | d1055ae | code only; the behaviour is the env: OPPOLL=1 = **+9.9%** (5.215 -> 5.729; second block below) | MERGE code; recommend OPPOLL=1 default on Windows |
+| graph cache N entries + HOSTSTAT | 85ceeab | see fin-c | MERGE if fin-c shows hits (default stays 1 = old behaviour) |
+| all of the above (default env, legacy loop) | - | 5.121 -> 5.237 (+2.3%); llama-bench pp16 +2.2%, pp256 +1.4%, tg32 +3.2% | |
+
+### Host CPU / the dspqueue busy-wait finding (matters for the NPU-only goal)
+* Host busy cores during generation: 0.98-0.99 in EVERY configuration (topk-c, dr, pad, all, OPPOLL 0/1, 0.5 ms hybrid).
+* Per-thread census (clover-port/thr.ps1, 250 ms samples over the generation window only): ONE thread (main) burns 0.99 core, all 7 ggml worker threads 0.000;
+  `-t 2 --poll 0` and `-t 1` change nothing (tok/s 4.70 vs 4.87, cores 0.99). Qwen3.6 plain decode on HTP0 - zero CPU fallback ops - shows the same 0.97 core on the main thread.
+* Therefore the main thread is inside the Windows `dspqueue_read(..., DSPQUEUE_TIMEOUT_NONE)` (libcdsprpc) and that wait is a busy-wait: the HTP backend's idle-host goal cannot be reached with host flags.
+  That also explains why OPPOLL=1 costs no extra core and is faster: the "blocking" call is not asleep, it just adds wake/poll latency on top; a 0.5 ms spin then blocking read (OPPOLL_SPIN_MS=0.5) recovers only half the gain (5.51-5.61).
+* DSP is busy only ~25% of a Clover step (profile: 9.3 s of 36.7 s; 21k batches of 7.9 ops; ~575 splits per pass), so most of the remaining main-thread time is host work between batches (sched splits, CPU CPY, enqueue, kparams solve).
+* Ideas for a real (event-based) wait, untested: (1) create the queue WITH a packet callback (dspqueue_create(..., packet_callback, error_callback, ctx) - today both are nullptr) which fires on a driver thread,
+  signal a Windows event / std::condition_variable from it and let flush_pending WaitForSingleObject, then drain with dspqueue_read_noblock (already imported in htp-drv.cpp). Combine with a short spin
+  (50-300 us) first so sub-ms batches keep the OPPOLL latency and long batches (MoE layers, 1-2 ms) sleep. (2) If libcdsprpc's callback thread itself spins, ask Qualcomm for a QueueEvent/semaphore
+  variant or use FastRPC async (remote_handle_invoke_async + completion event). (3) Independently, cut the number of sync points: fewer CPU splits (bf16 agent) and the multi-slot graph cache (this branch)
+  reduce the host work that keeps the thread running between batches.
+
+### Final A/B on the merged tip (blk2.ps1, one lock hold per block, ABBA, AC, no overlapping model process, host cores 0.98-0.99 everywhere)
+| block | config | baseline | final (clover-port tip) | note |
+| --- | --- | --- | --- | --- |
+| fin-a | legacy defaults (n_max 15, exact verify), baseline = pkg-clover-m2 (pre-rollback clover) | 5.165 5.117 (5.141) | 5.082 5.119 (5.101, -0.8%) | different algorithm (rollback is default in merged clover; stream hash differs: 05758780 vs 2B319F2D) - the port features roughly cancel the rollback's own -3% (rollback log: rs4 4.75 vs 4.91) |
+| fin-b | rollback product config (LLAMA_SPEC_BONUS=1, --spec-draft-n-max 5), baseline = pkg-clover-rollback-rs6 (= clover tip without the port) | 7.199 7.208 (7.204) | 7.421 7.352 (7.387, **+2.5%**) | **identical output hash D9B44E9DCF in all 4 runs** (GDN snapshot DMA, tile pad, dirty merge are bit-exact end to end with K>1) |
+Not completed in the time left (fin-c queued behind other agents; results are appended below only if they landed): OPPOLL=1 / GDN_SNAPDMA=0 / GRAPH_CACHE=4096 attribution inside the rollback config.
+
+### What to merge / defaults to recommend
+* Merge `clover-port` (all commits above) into `clover`: every code change is bit-exact (KLD/PPL identical, identical token streams in fin-b), self-contained (htp-dcache.c/main.c/htp-ctx.h; htp-tensor.h + htp-repack.h constants;
+  gated-delta-net-ops.{c,h} + htp-kparams.cpp; ggml-hexagon.cpp flush_pending/graph_compute; test-backend-ops perf block "BEGIN/END port agent"). Expected conflicts with bf16: none in htp-fusion/kparams except one hunk in htp-kparams.cpp (GDN kernel selection) and ggml-hexagon.cpp env block.
+* Env defaults: leave upstream defaults (OPPOLL=0) in the code, but for Clover runs on Windows set `GGML_HEXAGON_OPPOLL=1` (+10% on the legacy loop in ab3a: 5.729 vs 5.243/5.186; hybrid 0.5 ms spin +5.7%) - the host core is already 100% busy in the blocking wait, so it costs nothing;
+  the 400 ms bound and the response watchdog make it safe against the old infinite-spin hang. One OPPOLL=1 start hung only inside the orphaned run (see verdict above); no hang in 6 other OPPOLL=1 starts.
+  `GGML_HEXAGON_GDN_SNAPDMA` default 1 (needed by rollback), `GGML_HEXAGON_GRAPH_CACHE` default 1 (old behaviour; raise only after fin-c shows hits), `GGML_HEXAGON_HOSTSTAT=1` for diagnostics.
+* Skipped (reasons): xp flat expert pipeline (M=1..4 only; Clover 1-row decode is ~94 ms of which the DSP is a minor part -> <0.5% of a step), GDN row-block kernel (-3.6% of one op), pipelined HMX MoE + 2 MB ddr_spad + exact gather
+  (matmul-ops.c diverged by ~900 lines; 16-row MoE is 60+32 ms per draft pass of ~260 ms and near the DMA floor; the 2 MB spad only matters above 512 KB row maps, i.e. ub >= 512), fusions/replay (upstream already has the fusion set; replay is RFC-grade),
+  Q8_0 contiguous kernels (not used by Clover), HTP_OP_MAX_BUFS 64 (no gain upstream; n-bufs already 64 here).
+* Next ideas: event/callback wait for dspqueue (see above); fewer splits (bf16 CPY fusion) so the DSP share rises above 25%; multi-slot graph cache if fin-c shows hits; Q8_0/Q4_1 tile padding the same way (Clover down-proj is Q4_0 so not needed).

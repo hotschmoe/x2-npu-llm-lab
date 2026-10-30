@@ -1,0 +1,43 @@
+﻿== KLD (new default reference)
+EXIT=0
+chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p
+Mean PPL(Q)                   :  15.083178 ±   1.474944
+Mean PPL(base)                :  15.125386 ±   1.488121
+Mean    KLD:   0.019871 ±   0.000858
+RMS Δp    :  2.972 ± 0.224 %
+Same top p: 93.137 ± 0.792 %
+GATE PASS (KLD 0.019871 <= 0.025, same top 93.137 >= 92)
+== GDN cache fusion (K>1, exercises SNAP kernel)
+EXIT=
+  5/5 tests passed
+2/2 backends passed
+EXIT=
+[GATED_DELTA_NET] ERR = 0.000006845 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=64,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000004796 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=127,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000013822 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=256,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000011232 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=65,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.003484369 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=100,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000013722 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=200,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000008597 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=4,head_size=64,n_seq_tokens=127,n_seqs=2,v_repeat=1,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000000749 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=65,n_seqs=1,v_repeat=1,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000010293 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=65,n_seqs=3,v_repeat=4,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000480672 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=64,n_seqs=1,v_repeat=4,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000004613 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=257,n_seqs=1,v_repeat=3,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000469744 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=512,n_seqs=1,v_repeat=2,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000021072 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=513,n_seqs=1,v_repeat=3,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000010970 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=513,n_seqs=2,v_repeat=2,permuted=1,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.000229879 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=2048,n_seqs=1,v_repeat=2,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+[GATED_DELTA_NET] ERR = 0.004402713 > 0.000000100   GATED_DELTA_NET(type=f32,head_count=16,head_size=128,n_seq_tokens=2047,n_seqs=2,v_repeat=3,permuted=0,kda=0,K=1): [1;31mFAIL[0m
+  27/43 tests passed
+Failing tests:
+  Backend HTP0: [1;31mFAIL[0m
+1/2 backends passed
+[1;31mFAIL[0m
+fin-a #1 m2: 5.165 tok/s, host cores 0.99, out-hash 2B319F2D6C, timeout False, other llama procs before 0
+fin-a #2 final: 5.082 tok/s, host cores 0.98, out-hash 05758780C2, timeout False, other llama procs before 0
+fin-a #3 final: 5.119 tok/s, host cores 0.98, out-hash 05758780C2, timeout False, other llama procs before 0
+fin-a #4 m2: 5.117 tok/s, host cores 0.98, out-hash 2B319F2D6C, timeout False, other llama procs before 0
+fin-b #1 rs6: 7.199 tok/s, host cores 0.98, out-hash D9B44E9DCF, timeout False, other llama procs before 0
+fin-b #2 final: 7.421 tok/s, host cores 0.98, out-hash D9B44E9DCF, timeout False, other llama procs before 0
+fin-b #3 final: 7.352 tok/s, host cores 0.98, out-hash D9B44E9DCF, timeout False, other llama procs before 0
+fin-b #4 rs6: 7.208 tok/s, host cores 0.98, out-hash D9B44E9DCF, timeout False, other llama procs before 0
