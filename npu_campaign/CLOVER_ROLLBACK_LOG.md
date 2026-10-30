@@ -95,3 +95,77 @@ draft 4251 nodes / 1162 splits (CPU: CPY 462, CUSTOM 120, GET_ROWS 2), causal ve
 decode 2945 / 582 (CPY 446, CUSTOM 40, GET_ROWS 2): the same split counts and CPU op sets as the M0 audit. The K=16 GDN (HVX
 recurrent kernel, snapshots fused into the cache write) and the 16 conv-window CPYs per GDN layer (HTP gather-rows copy) all run
 on HTP0; the rollback adds no CPU fallback.
+
+### 2026-10-30 01:10 - lock race: runs 00:40-01:09 discarded, queue restarted
+
+At 00:55:43 three of my waiters (one HTP, two CPU, from three A/B scripts queued in parallel) held `.npu.lock` at the same time:
+`New-Item -ItemType Directory` succeeds on an existing directory, so several waiters "won" in one tick. Reported to the coordinator,
+who switched `npu-lock.ps1` to an atomic `CreateDirectoryW` (01:09:59). All my jobs were killed; every result from that window
+(htp2, ab2, sw2, hsw1, hmg1) is discarded. From here on: one A/B script at a time (`rb-queue1.ps1`: hab1 HTP A/B, cab1 CPU A/B
+3 prompts, cneg negative control, csw width sweep), and `clover-rollback-ab.ps1` samples the process list every 2 s and tags each
+row `clean` or `OVERLAP(pids)` when a non-rollback llama-* / test-backend* process ran during the run.
+
+### 2026-10-30 01:46 - HTP0 interleaved A/B hab1 (diffusion, exact greedy, n_max 15, -t 8, 2 rounds, order reversed in round 2)
+
+| config | tok/s r1, r2 | mean | tokens/step | D ms | V ms | R ms | P ms (1-token) | forwards | host CPU cores |
+|---|---|---|---|---|---|---|---|---|---|
+| legacy (prof0) | 4.84, 4.99 | 4.91 | 3.78 | 339 | 274 | 158 | - | 65 D + 68 V + 71 R = 0.794 /token | 1.13, 0.99 |
+| rollback (rs3) | 4.73*, 4.78 | 4.75 | 3.06 | 331 | 310 | 0 | 104 | 84 D + 84 V + 2 P = 0.661 /token | 1.32, 1.22 |
+| rollback + bonus decode (rs3, LLAMA_SPEC_BONUS=1) | 5.35, 5.37 | **5.36 (+9%)** | 4.02 | 334 | 306 | 0 | 105 | 64 D + 64 V + 66 P = 0.755 /token | 0.98, 0.99 |
+
+(* rs r1: another agent's orphaned HTP process was still in teardown during my model load, gone before generation.)
+- As predicted, rollback alone loses on HTP (R/(D+V) = 0.26 < 1/(k+1)): it saves R and the checkpoints but commits k+1
+  instead of k+2 tokens per step. Rollback + bonus decode keeps k+2 tokens per step and replaces R (158 ms, k+2 tokens)
+  by a 1-token decode (105 ms): 745 ms per 4.02 tokens vs 780 ms per 3.78.
+- Cost of rollback on HTP: verify +32 ms (306 vs 274: 16 GDN snapshots of 2 MiB per layer = 960 MiB written per verify via the
+  fused GDN+CPY, HVX recurrent kernel instead of the HMX chunked one, plus 16 conv-window copies per layer). Draft pass without the
+  checkpoint: 334 vs 339 ms. Host CPU drops from ~1.06 to 0.99 busy cores (no 4 checkpoint copies of ~63 MiB per step).
+- HTP streams are deterministic run to run (legacy r1 = r2, rs r1 = r2, rsbonus r1 = r2 for 256 tokens), but they differ between
+  methods (legacy vs rs at token 4, rs vs rsbonus at token 58): on HTP the logits of a position depend on the batch shape it was
+  computed in (16-token verify vs k+2 re-verify vs 1-token decode; chunked vs recurrent GDN kernel). The exactness gate is the CPU one.
+- Context: a plain 1-token HTP decode is 105 ms (9.5 tok/s); every self-spec config is still slower than plain decode on HTP,
+  because D + V (640 ms) cost ~6 plain decodes for ~3-4 tokens.
+
+### 2026-10-30 02:35 - FIFO lock era; first clean CPU numbers; snapshot cost; verify cap on HTP
+
+- Lock: the bf16 agent's 1 ms fast-poll starved the 200 ms waiters (my queued runs waited 20+ min, 01:49-02:13). The coordinator
+  made `npu-lock.ps1` a FIFO ticket lock (7c47cf6). All my waiters were relaunched, so every row below took a ticket.
+  The rollback/legacy split is the same in every package; rs4 = rs3 + 05c2715 (only copy the conv windows a rollback can read).
+- Clean CPU legacy (cab1 r1 / cg r1, diffusion): 20.24 / 19.45 tok/s. D 111.1 ms (decode 102.8, argmax 3.7, ckpt 2.3 + 2.3),
+  V 93.1 ms, R 49.8 ms, verify checkpoints 4.5 ms/step, sampling 1.6 ms/step. Shares: draft 42%, verify 37%, re-verify 19%, ckpt 3.5%.
+  (The 00:10 breakdown had V = 125 ms because another process was running.)
+- CPU rs4 (rollback, no bonus): 17.97 tok/s. The token stream is IDENTICAL to legacy for all 256 tokens. D 104.8 ms (no checkpoint),
+  but V = 123.8 ms, **+31 ms over legacy**: with n_rs_seq = 15 the CPU GDN writes 16 snapshots x 2 MiB x 30 layers = 960 MiB
+  into its output, and a CPY then moves them into the cache. That is ~2.9 GB of traffic per verify, at ~100 GB/s.
+  HTP fuses GDN+CPY, yet still pays +32 ms (HVX recurrent kernel instead of HMX chunked, plus the 960 MiB of writes).
+  The snapshots are the real price of the rollback. The verify-length cap is the lever, since the op only writes min(n_tokens, 16) snapshots.
+- HTP rollback + bonus + `LLAMA_SPEC_VERIFY_MAX=5` (rs3, 1 round, clean in the generation window): **6.41 tok/s** (rsbonus n_max 15:
+  5.36-5.43, legacy 4.91). V = 223 ms (6 tokens, 6 snapshots) vs 306 ms; D unchanged at 326 ms (the block stays 16 wide);
+  4.15 tokens/step. Interleaved A/B with verify caps 5 and 3 against legacy is queued (hab3).
+
+### 2026-10-30 03:35 - HTP A/B hab2, HTP width sweep, CPU code prompt: bonus decode is not bitwise identical
+
+- hab2 (HTP0, interleaved, 2 rounds, clean): legacy 4.91, 5.01; rs4 + bonus 5.41, 5.48 (+10%). Its stream is identical to the rs3 + bonus
+  stream (05c2715 does not change the numerics), and the 1-token decode drops from 105.5 to 101.8 ms (1 conv-window CPY per layer instead of 16).
+- HTP sweep, 1 round each (rollback + bonus, diffusion), per-step costs:
+
+| config | tok/s | D ms (block) | V ms (rows) | P ms | tokens/step |
+|---|---|---|---|---|---|
+| n_max 15 | 5.41-5.48 | 331 (16) | 306 (16) | 102 | 4.02 |
+| n_max 15, verify <= 5 (rs3) | 6.41 | 326 (16) | 223 (6) | 103 | 4.15 |
+| n_max 7 | 6.18 | 296 (8) | 246 (8) | 102 | 4.02 |
+| n_max 5 | **6.72** | 276 (6) | 217 (6) | 101 | 3.95 |
+
+  On HTP, acceptance barely depends on the block width (P(k >= 1..4) = .42 .26 .15 .09), so a narrow block and a short verify only
+  remove cost. The masked draft forward keeps a large fixed cost (276 ms for 6 tokens = 2.7 plain decodes): its graph has 1162 splits
+  vs 582 for a decode (120 CPU CUSTOM ops vs 40), which is the bf16/topk agents' area.
+- CPU code prompt (cg r1): legacy 25.89 tok/s, rollback 20.59 (IDENTICAL stream, V 129 vs 92 ms), rollback + bonus 24.56.
+  The rollback + bonus run overlapped an unlocked test-backend-ops (bf16, 03:22:33-39), so that timing is discarded.
+  Its stream **DIVERGES from legacy at token 246/256** (ref 1954 30, cand 6249 13), which is not a rollback-state error:
+  ggml-cpu's repacked Q4_0 matmul (repack.cpp forward_mul_mat_one_chunk) runs gemm on groups of 4 rows and gemv on the remaining rows,
+  with different float accumulation. A token's logits therefore depend on the batch shape it is computed in. The bonus token comes from
+  a 1-token decode, while in legacy it comes from row k+1 of the (k+2)-row re-verify; a near-tie flipped. Rollback without bonus
+  takes every token from a verify row, the same as legacy, and has matched it so far. Evidence that legacy itself depends on batch shape
+  is queued (legacy n_max 11 and plain decode on code).
+- c4535cf (CPU): GDN with K > 1 now writes the snapshots straight into the cache when its next non-view node is the CPY of the
+  snapshot tail (same floats; HTP already had fuse_gdn_cpy). Package rs5; validation queued.

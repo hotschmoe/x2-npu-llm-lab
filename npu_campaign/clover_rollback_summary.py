@@ -16,10 +16,16 @@ def parse(path):
     t = open(path, encoding='utf-8', errors='replace').read()
     r = {}
     m = re.search(r'decoded\s+(\d+) tokens in\s+([\d.]+) seconds, speed:\s+([\d.]+)', t)
-    if not m:
-        return None
-    r['tok'] = int(m.group(1))
-    r['tps'] = float(m.group(3))
+    if m:
+        r['tok'] = int(m.group(1))
+        r['tps'] = float(m.group(3))
+    else:
+        # llama-completion (plain causal greedy decode reference)
+        m = re.search(r'eval time =\s+[\d.]+ ms /\s+(\d+) runs.*?([\d.]+) tokens per second', t)
+        if not m:
+            return None
+        r['tok'] = int(m.group(1))
+        r['tps'] = float(m.group(2))
     m = re.search(r'forwards: draft (\d+), verify (\d+), re-verify (\d+)(?:, plain (\d+))? -> ([\d.]+) forwards/token', t)
     if m:
         r['nd'], r['nv'], r['nr'] = int(m.group(1)), int(m.group(2)), int(m.group(3))
