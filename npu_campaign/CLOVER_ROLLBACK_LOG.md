@@ -169,3 +169,64 @@ row `clean` or `OVERLAP(pids)` when a non-rollback llama-* / test-backend* proce
   is queued (legacy n_max 11 and plain decode on code).
 - c4535cf (CPU): GDN with K > 1 now writes the snapshots straight into the cache when its next non-view node is the CPY of the
   snapshot tail (same floats; HTP already had fuse_gdn_cpy). Package rs5; validation queued.
+
+### 2026-10-30 04:40 - CPU gate passes for rollback on all 3 prompts; CPU GDN fusion; merge of `clover`
+
+CPU exactness (greedy, 256 tokens, vs legacy prof0 on the same prompt; clover_tokens_cmp.py):
+
+| build | diffusion | code | math |
+|---|---|---|---|
+| rollback rs4 | IDENTICAL | IDENTICAL | IDENTICAL |
+| rollback rs5 (+ CPU GDN snapshot fusion) | IDENTICAL | IDENTICAL | (queued) |
+| rollback + bonus rs4 | IDENTICAL | diverges at 246 (batch-shape numerics, see 03:35) | IDENTICAL |
+| rollback + bonus rs5 | IDENTICAL | - | - |
+| negative control (rs2, state one token late) | diverges at 16, degenerates | - | - |
+
+CPU tok/s, round 1 (cg), clean:
+
+| config | diffusion | code | math |
+|---|---|---|---|
+| legacy | 19.45 (20.24 in cab1) | 25.89 | 34.73 |
+| rollback rs4 | 17.97 | 20.59 | 34.48 |
+| rollback rs5 (CPU fusion) | 19.39 | 23.21 | - |
+| rollback + bonus rs4 | 21.37 | (24.56, overlap) | 37.79 |
+
+- c4535cf works: CPU verify of 16 tokens is 106 ms with rs5 vs 124 ms with rs4 (legacy 93-98 ms, since it has no snapshots).
+  The rest of the snapshot cost is the 960 MiB the kernel itself writes.
+- rb-cg2-rs5b-diffusion (19.34 tok/s, 04:32-04:35) is discarded: every phase ran ~20% slower, the draft included, while
+  pkg-clover-m2 was being built. The overlap detector did not catch it because it only watched llama-* / test-backend*;
+  it now also flags clang* / cl / *link / ninja.
+- Coordinator request: merged `clover` (0478cfe: stable top-k on HTP, trace tooling) into clover-rollback, no conflicts (e695295).
+  Full host + v81 build gives package **pkg-clover-rollback-rs6**. The final HTP A/B is against pkg-clover-m2 (merged clover,
+  legacy loop) instead of prof0 (hm: m2 / rs6 + bonus n_max 5 / rs6 + bonus n_max 15, 2 rounds). The CPU check m2 vs rs6
+  (cm) and the CPU width sweep n_max 7 / 11 (cmsw) also run on rs6. Dropped from the plan: HTP n_max 3, pre-merge round 2s.
+
+### 2026-10-30 05:45 - Final HTP A/B on the merged build (rs6 vs pkg-clover-m2), CPU width sweep on rs6
+
+Final HTP0 A/B, diffusion, -t 8, interleaved (round 2 in reverse order), m2 = merged `clover` with the legacy loop:
+
+| run | m2 legacy (n_max 15) | rs6 rollback + bonus, n_max 5 |
+|---|---|---|
+| round 1 (hm: m2 then rs6) | 5.087 (compiler outside the generation window) | 6.939 (clean) |
+| round 2 (hm2: rs6 then m2) | 5.143 (clean) | 7.051 (compiler outside the window) |
+| mean | **5.12** | **7.00 (+37%)** |
+
+- Per-step HTP costs, rs6 + bonus n_max 5: D 257-261 ms, V 214-217 ms, P 94-96 ms (1-token decode), 3.95 tokens/step,
+  0.743 forwards/token, host CPU 0.99 cores (m2: 0.99). The merge (stable HTP top-k) lowered D from 276 to ~259 ms vs rs4.
+- Determinism: both rs6 n_max 5 runs give the same 256 tokens, and they match the pre-merge rs4 n_max 5 stream (hab3).
+  The m2 runs give byte-identical text. The HTP self-spec stream differs from the HTP legacy one (expected, see 03:35).
+- CPU (merged, clean): m2 legacy 19.34 tok/s; rs6 rollback (no bonus) 19.32 tok/s, **IDENTICAL** 256-token stream vs legacy
+  (D 106, V 106 ms, 0.494 forwards/token vs 0.568). With the CPU snapshot fusion the rollback is now on par with legacy on CPU
+  while running 13% fewer forwards per token and no checkpoints.
+- CPU width sweep (rs6 + bonus, diffusion, clean, streams IDENTICAL to legacy n_max 15 on this prompt):
+
+| n_max | tok/s | D ms | V ms | P ms | tokens/step | forwards/token |
+|---|---|---|---|---|---|---|
+| 7 | **31.80** | 69.6 | 67.7 | 23.4 | 5.14 | 0.584 |
+| 11 | 24.99 | 93.4 | 92.3 | 22.9 | 5.25 | 0.576 |
+| 15 | queued (cm) | | | | | |
+
+  Acceptance does not depend on the block width here (tokens/step 5.14-5.25), so a narrower block only removes cost.
+  The defaults are not changed (n_max stays 15 unless --draft-max is passed).
+- Queued controls, to attribute the gain to the rollback or to the width: CPU m2 legacy n_max 7; HTP m2 legacy n_max 5
+  (2 rounds) and HTP rs6 rollback without bonus at n_max 5. Also CPU rs6 + bonus n_max 5 / 3 and HTP n_max 3.

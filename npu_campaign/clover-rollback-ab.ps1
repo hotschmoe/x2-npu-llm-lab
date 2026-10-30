@@ -40,15 +40,15 @@ for ($r = 1; $r -le $Rounds; $r++) {
             $args_ = @{ Label = $label; Pkg = $pkg; Device = $Device; Threads = $Threads; Accept = $Accept; DraftMax = $dm;
                         NPredict = $NPredict; Prompt = "npu_campaign\clover-prompts\$p.txt"; Extra = $Extra; Exe = $exe }
             if ($exe -ne 'llama-speculative-simple.exe') { $args_.Extra = "$Extra -no-cnv" }
-            # the lock is not atomic (several waiters can win at once): sample other model processes every 2 s and flag
-            # any that run while ours does
+            # sample other model processes (and compilers: a build steals CPU / DRAM bandwidth) every 2 s and flag any that run
+            # while ours does
             $ovf = "$logDir\$label.overlap"
             Remove-Item $ovf -ErrorAction SilentlyContinue
             $watch = Start-Job -ArgumentList $ovf -ScriptBlock {
                 param($f)
                 while ($true) {
                     $t = [int](Get-Date -UFormat %s)
-                    Get-CimInstance Win32_Process -Filter "Name like 'llama-%' or Name like 'test-backend%'" |
+                    Get-CimInstance Win32_Process -Filter "Name like 'llama-%' or Name like 'test-backend%' or Name like 'clang%' or Name = 'cl.exe' or Name like '%link.exe' or Name = 'ninja.exe'" |
                         ForEach-Object { "$t $($_.ProcessId) $([int]($_.CommandLine -like '*pkg-clover-rollback-*')) $($_.Name)" } | Add-Content $f
                     Start-Sleep -Seconds 2
                 }
