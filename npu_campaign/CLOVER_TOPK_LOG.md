@@ -63,3 +63,33 @@ Append-only. Goal: Clover router/coreset top-k on HTP with the SAME ids in the S
   (ab2 r2 A = 4.566 was disturbed - HOST_CPU 1.53 busy cores - and the chain was restarted; ab1 discarded.) HOST_CPU busy cores: base 1.07-1.16,
   topk-c 0.98-0.99 (the remaining busy core is the CPY islands / scheduler, not the sort).
 - Interpretation: removing 40(+80) CPU islands per graph is worth ~5% on the self-draft loop (~+0.25 tok/s); the rest of the 900+ splits (CPY) dominate.
+
+## 2026-10-30 03:00-03:50 - real-logit fixtures, CPU PPL, perf
+- CPU PPL with the pkg-clover-topk-c graph (`topk-ppl.ps1 -Mode cpu`): **15.4413 +/- 1.52252**, exactly the CPU reference -> the graph change is
+  semantics preserving on CPU.
+- Real router logits captured from a CPU run (llama-eval-callback + COMMON_DEBUG_DUMP_*, ~1000 token prompt, all 40 layers; clover-logs/topk-capture/*.f32),
+  fixtures built by clover_topk_fixture.py: fixture-raw (1248 real `ffn_moe_logits` rows), fixture-masked (1248 rows after the emulated coreset mask,
+  16-token blocks, avg 221/256 entries exactly -1e30), fixture-coresetnorm (78 per-block normalized mass vectors, mostly exact 0.0).
+- HTP0 oracle (pkg-clover-topk-e, `topk-tbo.ps1`, `CLOVER_TOPK_FIXTURE=...`): **140/140 passed** (76 synthetic + 64 real-fixture cases; rows 1/16/256,
+  several row offsets, k=8 and k=256) - exact ids and order vs the host std::stable_sort reference, CPU also 140/140.
+- Negative control on the fixtures (`GGML_HEXAGON_TOPK_SPOIL=1`): **43/64 pass, 21 FAIL** - all failures are k=256 (full order of masked/zero-tie rows),
+  k=8 of real rows passes either way (no ties inside the real top-8). So: the router top-8 almost never meets ties on real logits, but the coreset's
+  256-wide order does (zeros in the normalized mass), and there the unstable kernel gives a different order.
+- Interleaved raw perf (one process, `perf -b HTP0 -o TOP_K|ARGSORT -p ne=[256,`, us/run; includes ~7-10 us op dispatch for 1 row):
+  | rows | ARGSORT (unstable, old kernel) | TOP_K k=256 stable | TOP_K k=8 stable | TOP_K k=256 unstable | TOP_K k=8 unstable |
+  | 1 | 6.7 | 11.1 | 10.9 | 13.4 | 13.6 |
+  | 16 | 12.5 | 20.0 | 34.9 | 26.7 | 45.6 |
+  | 256 | 155 | 274 | 275 | 386 | 386 |
+  The composite-key compare costs nothing visible (stable is even faster than the unstable TOP_K path - unexplained, the TOP_K op path is ~1.7-2.5x slower
+  than the ARGSORT op path for the same network; candidate follow-up: route through ARGSORT op with a stable flag, or look at the TOP_K dst DMA). k=8 with
+  16 rows (32 B output rows) is slower than k=256 (35 vs 20 us): small unaligned DMA writebacks. Graph uses k=256 + view, so it takes the fast case.
+  Per layer cost: router 1 row 11 us (decode), 16 rows 20 us (draft/verify), coreset sort 11 us -> 40 layers ~ 0.45 ms decode, ~2.4 ms draft graph (3 sorts/layer).
+
+## 2026-10-30 04:00 - spoof bound (OFF by default) and wrap-up
+- SPOOF `CLOVER_CORESET_SPOOF=1` (coreset skipped, results change): 4.537 t/s vs 5.034 (same pkg, interleaved, 1 pair; n_accept 185 vs 189). Slower, not faster:
+  without the coreset mask every token of the block routes to its own top-8, so many more distinct experts are read per draft pass. The coreset is a speed feature;
+  its own op chain cost can not be bounded this way (needs per-op profile: GGML_HEXAGON_PROFILE=1, not done - lock queue).
+- Not done: router/coreset kernel fusion. Estimated ceiling from the measured op costs: router sort 11 us x 40 layers ~ 0.45 ms/token of ~97 ms; coreset chain ~16
+  small HTP ops/layer (draft only). A fused kernel would save at most a few ms on ~200+ ms draft passes; the 900+ splits from CPY (bf16 agent) are the lever.
+- Final packages: pkg-clover-topk-c (model gates), pkg-clover-topk-e (same dll/skel + fixed test-backend-ops). a/b/d deleted.
+- Branch `clover-topk`: e511c98 (stable op), 78453af (full-row sort + view, spoof), bd98bbe (test fixture fix). Not pushed; `clover` untouched.
