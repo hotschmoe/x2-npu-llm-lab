@@ -163,3 +163,21 @@ clover-draft-dump (CLOVER_MULTI_STRIDE), LLAMA_CLOVER_NO_BF16_ROUND (spoof), mak
   tg32 ~170 ms/token over ~500 CPU<->HTP splits (~0.34 ms per split round trip) -> the bf16 CPY islands are the lever.
 - rollback agent interim (HTP, pre-merge): legacy loop 4.91, rollback+bonus 5.44, rollback+bonus n_max 5 **6.66**;
   plain causal decode 10.1 tok/s still beats speculation while every forward pays the CPU islands.
+
+### 2026-10-30 ~09:50 - M3: exact rollback merged (clover fast-forwarded to e695295), coordinator check
+
+- **Rollback (draft-self)**: per-position recurrent snapshots, so there is no re-verify forward and no checkpoints.
+  Merged HTP0 A/B (diffusion, interleaved, 2 rounds): legacy m2 **5.12** vs rs6 rollback + bonus decode at n_max 5 **7.00 tok/s (+37%)**.
+  Deterministic across runs. On CPU, rollback (no bonus) gives a 256-token stream IDENTICAL to legacy at 19.3 tok/s and 13% fewer forwards.
+  CPU width sweep: n_max 7 gives 31.8 tok/s (acceptance per step is flat at 5.1-5.3 tokens for widths 7-15, so narrower blocks only remove cost).
+  The defaults are still n_max 15. The recommended HTP flags will come in the rollback agent's final log.
+- **Port agent** (clover-port, not merged yet): dirty-range merge + Q4_0 640 B tile pad + bounded spin + GDN snapshot DMA.
+  KLD unchanged (bit-identical), speed +2.3-3.1%. `GGML_HEXAGON_OPPOLL=1` adds another +10%.
+  Profile: the DSP is busy only 25% of the Clover generation window. 16-row MoE in the draft pass costs about 140 ms of DSP time per pass.
+  **Finding for the NPU-only goal**: the host main thread burns 0.99 core in every configuration, including Qwen3.6 plain
+  decode with no CPU ops. On Windows the blocking dspqueue_read (DSPQUEUE_TIMEOUT_NONE) busy-waits inside the driver,
+  so host flags cannot idle the host. An event-based wait is needed (open item).
+- **bf16 agent**: CPY f32<->bf16 on HTP is bit-exact standalone and passes the KLD gate. Draft-path outputs varied run to run once many
+  large casts sat in one batch, and OPBATCH=1 hides it (suspect: DSP dcache coherency with the dirty-range tracker).
+  Possible confounder: an orphaned port-agent run sat unlocked on HTP0 from 09:16 to 09:50. Killed; agents told to rerun.
+- Rollback and port agents hit the stream watchdog. Both resumed with wrap-up instructions.
