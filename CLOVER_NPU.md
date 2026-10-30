@@ -181,3 +181,41 @@ clover-draft-dump (CLOVER_MULTI_STRIDE), LLAMA_CLOVER_NO_BF16_ROUND (spoof), mak
   large casts sat in one batch, and OPBATCH=1 hides it (suspect: DSP dcache coherency with the dirty-range tracker).
   Possible confounder: an orphaned port-agent run sat unlocked on HTP0 from 09:16 to 09:50. Killed; agents told to rerun.
 - Rollback and port agents hit the stream watchdog. Both resumed with wrap-up instructions.
+
+### 2026-10-30 ~11:50 - M4 / session wrap-up: clover = rollback + bf16 (opt-in) + port + idle (829d9f9), pkg-clover-m4
+
+**Correction to M3:** the "host main thread burns 0.99 core / driver busy-waits" finding was a MEASUREMENT ERROR (idle agent).
+The CPU window was anchored at process exit and measured the 51-55 s HTP buffer teardown. During real generation the main
+thread sleeps in dspqueue_read (0.02-0.04 core). Qwen plain decode spends ~0.9 core on spinning ggml-cpu workers
+-> `--poll 0` (or `-t 1`): **0.047 cores at 28.4 tok/s** (default 0.94 cores, 28.6 tok/s). Clover really uses ~6.5 host cores
+(CPU-fallback bf16 CPY splits). clover-run.ps1 now windows on the decode line and prints the teardown time.
+
+pkg-clover-m4 (merged tip 829d9f9):
+- KLD vs F32-dense reference: 0.019871 / same-top 93.137% / PPL 15.0832 -> **GATE PASS** (bit-identical to M0/m2).
+- Product config (LLAMA_SPEC_BONUS=1, --spec-draft-n-max 5, GGML_HEXAGON_OPPOLL=1, --poll 0, exact verify, diffusion, 256 tok):
+  **7.40 tok/s**, host 6.80 cores. (Port agent: same config on clover-port 8.14 in its A/B; session drift ~4%. Start of campaign: 4.9-5.1.)
+
+| milestone | draft-self tok/s on HTP0 |
+|---|---|
+| M0 (PR as-is) | 5.1 |
+| M1 stable top-k on HTP | 5.15 |
+| M3 rollback + bonus, n_max 5 | 7.0 |
+| + port (dirty merge, tile pad, GDN snap DMA) + OPPOLL=1 | 7.4-8.1 |
+| bf16 CPY on HTP (GGML_HEXAGON_BF16_CPY=1, NOT repeatable yet) | 8.8 at 0.18 host cores |
+
+Plain causal decode on HTP is ~10-11 tok/s, so speculation only wins once the draft forward is cheaper.
+
+What landed (all defaults are bit-exact; new behaviour behind env):
+- bf16 (CLOVER_BF16_LOG.md): CPY f32<->bf16 on HTP, RNE bit-exact (102/108 oracle; the 6 full-transpose sources stay on CPU), fused round pair.
+  Splits draft 1162->242, verify 762->82, decode 582->82. **Off by default**: full generation is not repeatable run to run. Root cause is
+  open: an in-batch DSP cache hazard where cached readers (REPEAT memcpy proven) see DMA-written data; OPBATCH=1 hides it, POSTFLUSH alone does not.
+- port (CLOVER_PORT_LOG.md): +2.5%; OPPOLL=1 +10% (recommended for Clover runs). Graph cache 0 hits (scheduler gives fresh uids).
+- idle (CLOVER_IDLE_LOG.md): QoS latency init. Use `--poll 0`.
+- rollback (CLOVER_ROLLBACK_LOG.md): default for draft-self; bonus via LLAMA_SPEC_BONUS=1.
+
+**Next session, in priority order:**
+1. Fix the bf16 cache hazard. Make REPEAT and other cached-load ops invalidate their DMA-written sources, or route them through DMA.
+   Re-verify with npu_campaign/bf16-bundleC.ps1 (B1 == B2 repeat). This unlocks ~9+ tok/s with an idle host.
+2. Then profile the draft graph per op (GGML_HEXAGON_PROFILE=1). Fuse and megakernel the masked-block forward, move sampling/argmax onto the NPU,
+   and add bf16 KV SET_ROWS on HTP.
+3. Narrow top-k output DSP crash; HTP buffer teardown takes 52 s at model unload; n_max 3 + bonus (7.67 in a single run).
