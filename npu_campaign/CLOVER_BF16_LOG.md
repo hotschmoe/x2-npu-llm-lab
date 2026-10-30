@@ -72,3 +72,68 @@ Append-only. Charter: CLOVER_NPU.md. Goal: every build_bf16_round CPY (F32->BF16
   cache flush). Prime suspect: DSP data-cache coherency of DMA-written tensors (htp-dcache dirty-range tracker; lingering dirty lines in memory the allocator reuses ->
   write-back over DMA-written data), which OPBATCH=1 (qurt_mem_cache_clean at every batch) hides.  Test of mm consumers (state recall chain, `CPY_BF16_MM` cases, 16/16 OK) rules out the BF16 mul_mat consumer.
 - Experiment queued: GGML_HEXAGON_BF16_PREFLUSH=1 (the CPY kernel does dccleaninva on its dst range before writing).
+
+### 2026-10-30 09:55 - status: kernels + fusion done and bit-exact; model-level instability under investigation (possibly contaminated by a stray HTP session)
+- State: branch clover-bf16 = d905ddb (kernels) + 86f2a17 (fusion tag fix, diagnostics, chain tests) + merge of clover (topk 0 CUSTOM, trace tools) + merge of rollback clover (clean merge, tests file uncommitted adds CPY_BF16_GDN/STACK).
+- Placement audit (pkg-clover-bf16-a): CPY on CPU 462/566/446 -> 0; splits 1162/762/582 -> 242/82/82 (remaining CUSTOM, now removed by topk merge).
+- Oracle: 102/102 bit-exact fused and unfused; spoil switch fails 68 -> negative control OK. KLD (old CPU ref): 0.047923 / 15.083178 identical to base.
+- Open: spec runs on the all-HTP package gave run-to-run different text (base is stable). Bisection found: stable for every subset of casts, unstable only when all
+  cast groups are on HTP; OPBATCH=1 stable; trace runs that sync at the GDN inputs are stable (GDN output of layer 0 good), runs that batch GDN with its feeding
+  rounds/cont/repeat have a bad GDN output (nmse 4e-2 vs 3e-6) -> hazard between the cast->repeat->cont chain and the gated_delta_net op, or a second HTP session
+  (coordinator: a hung port-agent process sat on HTP0 09:16-09:50 and other unlocked processes at 03:22). All instability conclusions must be re-checked in a clean window:
+  queued `bf16-hold2` = GDN-front-end synthetic test (x3 + OPBATCH=1 control) and two clean 16-token determinism runs with a stray-process check.
+- Lock lesson: a waiting script whose FIFO ticket was pruned while the machine slept (06:52 -> 09:11 clock gap) never re-queued; relaunch if no ticket in .npu.lock.queue.
+
+### 2026-10-30 10:50 - ROOT CAUSE LOCATED (cache coherency of DMA-written bf16 rounds), fix candidates
+- Trace bisection on layer 0 (CPU trace vs HTP trace, `trace_nmse_table.py`): with sync points only at l_out the GDN output attn_output-0 is wrong (nmse 4e-2..7e-2 vs 3e-6),
+  with a sync after the q/k REPEAT outputs (x2/y2) or after the two l2-norm `cont`s (y1) it is exact. Observing only k_conv_predelta (y3) shows k_conv_predelta itself wrong
+  (8e-2). I.e. the k chain `cont -> sqr -> sum_rows -> scale_bias -> sqrt -> div -> [round pair, ours] -> REPEAT` is corrupted when it runs in the same DSP batch behind
+  the q chain. `repeat-ops.c` copies with plain `memcpy` (cached loads/stores, no DMA) the tensor our kernel just wrote with DMA.
+- Synthetic graphs (round -> repeat -> GDN, chains of 8 layers, bf16 mul_mat consumers) all pass, so the hazard needs the real batch history.
+- Switches in the cast kernels (diagnostic env, OFF by default): PREFLUSH (dccleaninva of dst before the DMA write): garbage as before. POSTFLUSH (dccleaninva of dst right after the
+  DMA completes) and FLUSHALL (qurt_mem_cache_clean after the op): coherent text ("We need answer ..."), control garbage. => the consumer sees stale cache lines / not-yet-visible
+  DMA writes of the rounded tensor; the framework's dirty-range tracker does not make that safe for a DMA-writing kernel followed by a memcpy (cached) kernel.
+- Next: confirm POSTFLUSH reproduces the baseline text deterministically (queued f2), then make a range post-flush the default for bf16 cast kernels.
+
+### 2026-10-30 11:25 - FINAL STATE (agent bf16)
+
+Branch `clover-bf16` (worktree llama.cpp-hexagon-clover-bf16), commits: d905ddb kernels+fusion+tests, 86f2a17 fusion-tag fix + diagnostics, 9b36e69 merge clover (topk/trace),
+834c734 merge clover (rollback), ccdfcce POSTFLUSH default + chain tests, c90b500 bf16 CPY on HTP opt-in. Packages: `pkg-clover-bf16-final` (= code at c90b500), `pkg-clover-bf16-k`
+(same kernels, casts ON by default, used for the A/B and KLD below), older a..j for the bisection.
+
+**What works (valid, bit-exact):**
+- HTP kernels CPY F32->BF16 (RNE, NaN quieting, = ggml_compute_fp32_to_bf16), BF16->F32, flat dense path + row path for padded/permuted views; BF16 same-type copy; fused
+  CPY+CPY -> one F32->F32 rounding pass (`HTP_FUSE_CPY_BF16_ROUND`, disable alone with GGML_HEXAGON_OPFUSION=8190). Oracle `test-backend-ops -b HTP0` (CPY / CPY_BF16_ROUND cases from
+  Clover shapes): 102/102 bit-exact fused and unfused (108 cases, 6 unsupported = full transpose); negative control GGML_HEXAGON_BF16_SPOIL=1 (truncation) fails 68 cases.
+  Chain tests (round->mul_mat, 8-layer stack, round->l2norm->repeat->GDN front end) pass vs CPU.
+- Placement audit with casts on HTP: CPY on CPU 462/566/446 -> 0, splits 1162/762/582 -> 242/82/82 (before the topk merge; only CUSTOM top-k remained).
+- KLD gate (new CPU-f32dense reference, clover-kld.ps1, causal 4x512, casts on HTP): mean KLD 0.019871, same-top 93.137%, PPL 15.083178 -> GATE PASS, identical to M0 HTP0 (0.0199/93.1%/15.083178).
+- Host CPU while generating: 0.18-0.24 busy cores with casts on HTP vs 6.5 cores with casts on CPU (same package, MAX_ELEMS=1 switch) - the NPU-only goal is met in that sense.
+
+**What does NOT work (blocking):** end-to-end generation with ALL casts on HTP is not repeatable. `fin` A/B (same package k, A = GGML_HEXAGON_BF16_MAX_ELEMS=1 = casts on CPU = merged-clover behaviour,
+B = casts on HTP + dst cache flush), exact greedy verify, 256 tokens, interleaved A B A B, FIFO lock held, no stray process at start (hold2 checked):
+  A1 5.027 tok/s, A2 4.912 tok/s, texts byte-identical, mean acc len 3.01 (deterministic);  B1 8.787 tok/s, B2 16.696 tok/s, texts DIFFERENT (B1 coherent "The user is asking about diffusion...",
+  B2 degenerate repetition "Short-term answer: ..."), mean acc len 3.94 / 7.31. => the B speeds are NOT valid results (B2's 16.7 tok/s is a repetition loop with a high draft acceptance).
+  Valid A-only numbers: ~5.0 tok/s; plain-decode steps not measured cleanly (eval-time lines cover 1 run: A 90 ms/token, B1 71 ms/token; unreliable).
+Earlier unlocked/contaminated windows (my 02:20 ab1/ab2: base 4.86/4.92 tok/s deterministic, bf16-a 8.2 and 5.9 tok/s non-deterministic) agree with this picture.
+
+**Instability: root cause analysis (best hypothesis, not closed).**
+- Not the orphan: the coordinator's 09:16-09:50 orphan overlaps only my w1..w3 trace runs (their conclusions are consistent with the clean ones: x*, y* ran 10:04-10:15, `hold2`
+  determinism runs at 09:58 started with 0 stray HTP processes, and the final `fin` runs at 11:03-11:19 were clean) and the instability is reproduced in clean windows. Earlier mid-night windows
+  had a few unlocked test-backend-ops runs of other agents (03:22) but the instability appears in every clean window as well.
+- Needs all cast groups on HTP at once (any subset, any size window, any name class: stable; union: unstable); OPBATCH=1 (cache flush after every op) stable; OPBATCH=16/128 unstable;
+  not fusion (OPFUSION=0 unstable), not threads (NTH=1 unstable), not kernel arithmetic (oracle exact).
+- Trace bisection of layer 0 (causal prefill, 13 tokens, CPU trace vs HTP trace): the k chain `cont -> sqr -> sum_rows -> scale_bias -> sqrt -> div -> [our round] -> REPEAT` produces a wrong
+  k_conv_predelta (nmse 8e-2) when it runs in the same DSP batch behind the q chain; a sync (batch end = full dcache clean) after the l2-norm conts, after q_conv_predelta, or after both
+  predelta tensors makes it exact. `repeat-ops.c` uses plain `memcpy` (cached loads/stores) on the tensor our kernel wrote with DMA; the dirty-range tracker (htp-dcache.c) is supposed to cover
+  that but the fault shows up only with real batch history. Cache flush switches in the cast kernels: PREFLUSH (before DMA) no effect; POSTFLUSH (range flush after the DMA, now default
+  for casts) and FLUSHALL gave coherent text in single 16-token probes, but the 256-token A/B above shows POSTFLUSH alone does NOT make the run repeatable. So either more consumers read DMA-written data
+  through the cache (REPEAT is the proven one; other cached-store/-load ops unknown) or the hazard is DSP-side ordering of the DMA completion vs the next op rather than stale lines.
+- Suggested next step for whoever continues: make REPEAT (and any op using memcpy/cached HVX loads on activations) invalidate its source range itself / use DMA; then rerun
+  `bf16-bundleC.ps1 -PkgA k -PkgB k -EnvA GGML_HEXAGON_BF16_MAX_ELEMS=1 -Rounds 2` and `bf16-trace2.ps1` (HTP vs HTP trace repeat) before trusting any speed number.
+
+**Recommendation:** merge the branch for the infrastructure (kernels, fusion, tests, diagnostics) with bf16 CPY on HTP OFF by default (this is what c90b500 does: GGML_HEXAGON_BF16_CPY=1 opts in; with it
+off the behaviour equals `clover`). Do not enable it in any installed build until the A/B above gives identical text across repeats (B1==B2) and equals A or has KLD-equivalent quality.
+The potential, if the hazard is fixed: all 446-566 CPYs/graph on HTP, splits 582 -> 82 (-> ~1 with topk on HTP), host CPU 6.5 -> 0.2 cores, draft-self step time roughly halved.
+Not done: producer-epilogue fusion (round folded into ADD/MUL/SILU; estimated <2% of decode since a fused pair costs ~3.7 us/op), strided full-transpose CPY, final oracle rerun on
+`pkg-clover-bf16-final` is queued (bf16-suite-fin.out) - see clover-logs.
