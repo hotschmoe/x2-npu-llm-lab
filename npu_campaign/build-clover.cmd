@@ -17,10 +17,10 @@ if not exist build-clover\build.ninja (
   cmake --preset arm64-windows-snapdragon-release -B build-clover -DLLAMA_BUILD_EXAMPLES=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_SERVER=ON -DGGML_HEXAGON_HTP_CERT= %*
   if errorlevel 1 ( echo BUILD_EXIT=2 & exit /b 2 )
 )
-cmake --build build-clover --parallel 6 --target llama-cli llama-bench llama-completion llama-perplexity llama-server llama-speculative-simple llama-eval-callback test-backend-ops
+cmake --build build-clover --parallel 4 --target llama-cli llama-bench llama-completion llama-perplexity llama-server llama-speculative-simple llama-eval-callback test-backend-ops
 if %errorlevel% neq 0 ( echo BUILD_EXIT=3 & exit /b 3 )
 rem build the v81 skel ExternalProject target explicitly (upstream master layout)
-cmake --build build-clover --parallel 6 --target htp-v81
+cmake --build build-clover --parallel 4 --target htp-v81
 if %errorlevel% neq 0 ( echo BUILD_EXIT=4 & exit /b 4 )
 echo BUILD_EXIT=0
 exit /b 0

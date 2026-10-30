@@ -135,3 +135,22 @@ KLD vs CPU unchanged (0.047923, same-top 89.216%), CPU PPL 15.4413 exactly. Inte
 (4.89-4.91 -> 5.14-5.16 tok/s), host CPU 1.07-1.16 -> 0.98-0.99 busy cores. Details: npu_campaign/CLOVER_TOPK_LOG.md.
 Pushed: hotschmoe/llama.cpp `clover-hexagon`.
 Interim (rollback agent): rollback alone 4.75 vs 4.91 legacy, rollback + bonus decode 5.36 (+9%) on HTP0.
+
+### 2026-10-30 ~05:00 - M2: the KLD gap was the CPU reference, not the NPU (trace agent; tools merged 0478cfe)
+
+- Calibration on the same build: Qwen3.6 HTP0 vs CPU KLD 0.0060 / same-top 96.1% -> the 0.048 gap is Clover-specific.
+- First divergent tensor: `linear_attn_out-0` (ssm_out, Q4_0, K=4096). Exact f64 recompute from each device's own inputs:
+  HTP dense matmuls 5-7e-8 from exact (fp16 HMX), CPU 2e-6..1.3e-4 = ggml-cpu Q8_0 activation quantization (Clover
+  activations have per-row absmax/rms up to 63). Routed experts same picture.
+- Near-exact reference (311 dense tensors dequantized to F32, experts unchanged, CPU): PPL 15.125.
+  vs it: **HTP0 KLD 0.0199 / same-top 93.1%**, CPU Q4_0 0.0458 / 90.0%. HTP is 2.3x closer. Floor ~0.018
+  (one HTP build vs itself with an exact router: 0.0177). bf16 rounds are not the driver (removing all: 0.048 -> 0.043).
+- New gate (clover-kld.ps1 default): reference `cpu-f32dense-kld-base.bin`, PASS if KLD <= 0.025 and same-top >= 92%.
+- Only HTP-side approximation found: fp16 router on HMX (F32 weights), flips 0.6-1.2% of top-8 sets;
+  `GGML_HEXAGON_F32_HMX=0` gives exact routing, same 0.0199 KLD, +6.5% prefill time -> default unchanged.
+- Diffusion draft path (465 teacher-forced mask rows): HTP vs near-exact KLD 0.036, argmax agreement 89.2%
+  (CPU 84.3%); draft token accuracy CPU/HTP/ref 16.6/15.7/15.9%. Draft path is far more sensitive (block coreset
+  differs in 24/40 layers between CPU and HTP).
+- Note: a full CPU trace (`-Filter '.'`) perturbs CPU results (breaks RMS_NORM+MUL fusion); named filters are safe.
+Details: npu_campaign/CLOVER_TRACE_LOG.md. Tools: LLAMA_TENSOR_TRACE_FILE/_FILTER, COMMON_DEBUG_DUMP_DIR/_RE,
+clover-draft-dump (CLOVER_MULTI_STRIDE), LLAMA_CLOVER_NO_BF16_ROUND (spoof), make_f32dense_gguf.py.
