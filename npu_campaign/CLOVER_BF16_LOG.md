@@ -137,3 +137,6 @@ off the behaviour equals `clover`). Do not enable it in any installed build unti
 The potential, if the hazard is fixed: all 446-566 CPYs/graph on HTP, splits 582 -> 82 (-> ~1 with topk on HTP), host CPU 6.5 -> 0.2 cores, draft-self step time roughly halved.
 Not done: producer-epilogue fusion (round folded into ADD/MUL/SILU; estimated <2% of decode since a fused pair costs ~3.7 us/op), strided full-transpose CPY, final oracle rerun on
 `pkg-clover-bf16-final` is queued (bf16-suite-fin.out) - see clover-logs.
+
+- 11:40 final-package oracle (`pkg-clover-bf16-final`, c90b500, run with GGML_HEXAGON_BF16_CPY=1 as required now): fused 102/102 OK, unfused (OPFUSION=8190) 102/102 OK, spoil (truncation) 68 FAIL / 34 OK, 6 not supported (full transpose).
+  Default (no env) the bf16 casts are not claimed by HTP0, i.e. behaviour = `clover`.
