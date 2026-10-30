@@ -230,3 +230,72 @@ Final HTP0 A/B, diffusion, -t 8, interleaved (round 2 in reverse order), m2 = me
   The defaults are not changed (n_max stays 15 unless --draft-max is passed).
 - Queued controls, to attribute the gain to the rollback or to the width: CPU m2 legacy n_max 7; HTP m2 legacy n_max 5
   (2 rounds) and HTP rs6 rollback without bonus at n_max 5. Also CPU rs6 + bonus n_max 5 / 3 and HTP n_max 3.
+
+### 2026-10-30 09:55 - FINAL: width-matched controls, narrow-block sweep, plain decode, flags and recommendation
+
+All on the merged build (rs6 = clover-rollback e695295 vs pkg-clover-m2 = merged `clover`, legacy loop), diffusion prompt,
+clean unless noted. Discarded: rb-hl3-m2 (it fell in the 09:16-09:50 window of the orphaned unlocked port-agent run and was
+killed before it finished).
+
+**How it is switched on (rs6 / clover-rollback):**
+- Rollback (no re-verify, no checkpoints, exact): **on by default** for `--spec-type draft-self` on CLOVER_MOE. There is no
+  env var for it: `need_n_rs_seq()` gives draft-self `n_rs_seq = --spec-draft-n-max`, so the recurrent cache keeps per-position
+  snapshots, `common_context_can_seq_rm` reports partial seq_rm, and speculative-simple skips the target checkpoint and the
+  re-verify. The draft probe stops checkpointing (`LLAMA_DRAFT_SELF_CKPT=1` forces the old checkpointing).
+  `LLAMA_RS_ROLLBACK_NEGCTL=1` is the negative control (restores the state one token late; never use it otherwise).
+- Bonus decode: **off by default**, `LLAMA_SPEC_BONUS=1` (after a partial acceptance, a 1-token decode of the correction token
+  instead of drafting from it). Not bitwise identical to legacy on CPU (code prompt diverges at token 246 by batch-shape numerics).
+- Other opt-in knobs: `LLAMA_SPEC_VERIFY_MAX=n` (verify at most n draft tokens), `LLAMA_DRAFT_SELF_MARGIN=x` (cut the draft at a
+  low top-1/top-2 margin), `LLAMA_SPEC_TOKENS_OUT=path` (token dump). Block width: `--spec-draft-n-max` (library default 3;
+  clover-run.ps1 passes 15 = trained block 16).
+- **Recommended default for draft-self on HTP: `LLAMA_SPEC_BONUS=1` with `--spec-draft-n-max 3`** (7.67 tok/s, 1 round),
+  or n_max 5 (7.00 tok/s, 3 rounds) as the better-measured choice. Narrow n_max is also right without bonus.
+  Caveat: HTP plain causal decode (10.13 tok/s) is still faster than every self-spec configuration.
+
+Width-matched HTP0 A/B (n_max 5 for all, -t 8):
+
+| run | m2 legacy n_max 5 | rs6 rollback, no bonus, n_max 5 | rs6 rollback + bonus n_max 5 |
+|---|---|---|---|
+| hm / hm2 (05:33-05:39) | - | - | 6.939, 7.051 |
+| hl / hl2 (05:56-06:12) | 6.233, 6.215 | 6.689 | - |
+| hl3 (06:46) | (discarded) | - | 6.961 |
+| hc (final pair, 09:55-10:04, adjacent, clean) | 6.502 | 6.799 | - |
+| mean | **6.32** | **6.74** | **6.98** |
+
+- The +37% over the n_max 15 legacy default (5.12 -> 7.00) splits into about +23% from the narrow block (legacy n_max 5: 6.32)
+  and about +10% from rollback + bonus at the same width (6.98 vs 6.32; +12% vs the m2 n_max 5 runs of the same hour). Rollback alone (exact path, no bonus) gives +7% at the same width (+4.6% in the adjacent hc pair):
+  0.646 forwards/token vs 0.743 with bonus, but 3.13 vs 3.95 tokens/step. The same m2 n_max 5 binary ran 6.22 at 06:00 and
+  6.50 at 09:57 (byte-identical text), so machine drift between sessions is ~4%; the hc pair is the cleanest rollback-only
+  comparison. hc rs6 gives the same 256 tokens as hl2 rs6.
+- HTP rs6 + bonus n_max 3: **7.67 tok/s** (D 214 ms for 4 tokens, V 140 ms, P 96 ms, 3.29 tokens/step, 0.844 fwd/token).
+- HTP plain causal decode (llama-completion, hsw2): 10.13 tok/s. The masked draft forward costs 214 ms for 4 tokens
+  (2.2 plain decodes and 1.5x the 4-token verify), so a step needs more than (D + V) / 99 ms = 3.6 accepted tokens to break
+  even; HTP acceptance gives 3.3 at n_max 3 (P(k >= 1..4) = .42 .26 .15 .09).
+
+CPU (-t 12):
+
+| config | n_max | tok/s | D ms | V ms | P ms | tokens/step | fwd/token | stream vs legacy n_max 15 |
+|---|---|---|---|---|---|---|---|---|
+| m2 legacy | 15 | 19.34 | (prof0 112) | (prof0 95) | (R 51) | 5.14 (prof0) | 0.568 (prof0) | reference |
+| m2 legacy | 7 | 27.76 | - | - | - | - | - | text identical |
+| rs6 rollback | 15 | 19.32 | 106 | 106 | - | 4.14 | 0.494 | IDENTICAL |
+| rs6 + bonus | 15 | 22.38 | 107 | 107 | 23.0 | 5.35 | 0.568 | IDENTICAL |
+| rs6 + bonus | 11 | 24.99 | 93 | 92 | 22.9 | 5.25 | 0.576 | IDENTICAL |
+| rs6 + bonus | 7 | 31.80 | 70 | 68 | 23.4 | 5.14 | 0.584 | IDENTICAL |
+| rs6 + bonus | 5 | 33.06 | 64 | 61 | 23.4 | 4.76 | 0.580 | IDENTICAL |
+| rs6 + bonus | 3 | 36.58 | 46 | 43 | 23.8 | 3.67 | 0.665 | IDENTICAL |
+| plain decode (llama-completion) | - | 41.11 | - | - | 24.3/token | 1 | 1.0 | different prompt path, speed only |
+
+- At matched width (n_max 7) rollback + bonus is +15% over legacy on CPU (31.80 vs 27.76).
+- CPU plain decode (24.3 ms/token) is also faster than every self-spec configuration measured.
+
+Exactness summary (CPU, greedy, 256 tokens vs legacy): rollback IDENTICAL on diffusion / code / math (rs4, rs5, rs6);
+rollback + bonus IDENTICAL on diffusion (n_max 3-15) and math, diverges on code at 246 (batch-shape numerics in the repacked
+Q4_0 gemm/gemv split, not rollback state). Negative control diverges at token 16 and degenerates. HTP streams are deterministic
+run to run (rs6 n_max 5 x3, m2 x2 byte-identical) and the merge did not change the rs n_max 5 stream.
+
+Next ideas: (1) make the masked draft forward cheap on HTP (1162 graph splits vs 582 for a decode, 120 CPU CUSTOM ops);
+it is the reason self-spec loses to plain decode. (2) Device-side argmax of the draft/verify rows. (3) Snapshot replay /
+first-K snapshots instead of writing n_max+1 x 2 MiB x 30 layers per verify. (4) Adaptive n_max / verify length from recent
+acceptance. (5) Batch-invariant CPU matmul (always gemm or always gemv per row) so the bonus path passes the strict gate.
+(6) MoE expert-union cost of wide verify batches.
