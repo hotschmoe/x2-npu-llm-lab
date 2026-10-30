@@ -45,6 +45,7 @@ $samples = [System.Collections.Generic.List[object]]::new()
 try {
     $run = Start-Process -FilePath "$pkgDir\bin\$Exe" -ArgumentList $a -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput "$out.log" -RedirectStandardError "$out.err"
+    $tStart = $sw.Elapsed.TotalSeconds
     $null = $run.Handle   # keep the handle so CPU times stay readable after exit
     while (-not $run.HasExited) {
         try { $samples.Add([pscustomobject]@{ t = $sw.Elapsed.TotalSeconds; cpu = $run.TotalProcessorTime.TotalSeconds }) } catch {}
@@ -58,8 +59,13 @@ $dec = Select-String -Path "$out.err" -Pattern 'decoded +\d+ tokens in +([\d.]+)
 $evl = Select-String -Path "$out.err" -Pattern 'eval time = +([\d.]+) ms' | Select-Object -Last 1
 $genSec = if ($dec) { [double]$dec.Matches[0].Groups[1].Value } elseif ($evl) { [double]$evl.Matches[0].Groups[1].Value / 1000 } else { 0 }
 if ($genSec -gt 1 -and $samples.Count -gt 8) {
-    # generation ends just before exit (teardown < ~1 s); window = [last sample - 0.5 - genSec, last sample - 0.5]
-    $tEnd = $samples[$samples.Count - 1].t - 0.5; $tBeg = $tEnd - $genSec
+    # Window ends at the stderr timestamp (m.ss.mmm.uuu since process start) of the decoded/eval-time line. Do NOT anchor it at
+    # process exit: teardown (releasing the HTP-mapped buffers) runs ~50 s at ~1 core in kernel mode (idle-host agent, 2026-10-30).
+    $tsl = Select-String -Path "$out.err" -Pattern '^(\d+)\.(\d+)\.(\d+)\.(\d+) I .*(decoded +\d+ tokens in|eval time = .*runs)' | Select-Object -Last 1
+    if ($tsl) { $tEnd = $tStart + [double]$tsl.Matches[0].Groups[1].Value * 60 + [double]$tsl.Matches[0].Groups[2].Value + [double]$tsl.Matches[0].Groups[3].Value / 1e3 }
+    else { $tEnd = $samples[$samples.Count - 1].t - 0.5 }
+    $tBeg = $tEnd - $genSec
+    "teardown after generation: {0:F1}s" -f ($samples[$samples.Count - 1].t - $tEnd)
     $w = @($samples | Where-Object { $_.t -ge $tBeg -and $_.t -le $tEnd })
     if ($w.Count -ge 2) {
         $cores = ($w[-1].cpu - $w[0].cpu) / ($w[-1].t - $w[0].t)
