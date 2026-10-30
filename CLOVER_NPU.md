@@ -112,3 +112,13 @@ Qwen3.6 is the target ceiling for Clover's causal path once the fallbacks are go
 and the Clover router). Clover pp16 = 2.3 tok/s is pathological (draft-self's 16-token verify batches ran ~46 tok/s
 in the same build), suspect: `n_tokens != n_outputs` "prefill" branch of the graph. Re-measure on a quiet machine.
 Rule added: CPU-only model runs take the NPU lock (clover-run.ps1 now always locks).
+
+### 2026-10-30 00:20 - product KPI: host CPU while generating
+
+The user's goal for the deployed product is NPU-only inference: the laptop stays fully usable (no UI lag, CPU and GPU
+free). CPU/GPU may be used freely for testing. `clover-run.ps1` now samples the process CPU time (250 ms) and prints
+`HOST_CPU busy cores during generation`; every A/B reports it next to tok/s. Host-side costs to drive to ~0:
+CPU fallback ops, host spin-waits on HTP completion, full-vocab argmax/entropy over 248k x 16 rows per step,
+recurrent-state checkpoint memcpy. `clover-kld.ps1` is the locked KLD gate helper.
+Incident: an unlocked HTP0 perplexity run overlapped locked runs 00:09-00:15 (one run measured 0.57 tok/s);
+timings in that window are void.

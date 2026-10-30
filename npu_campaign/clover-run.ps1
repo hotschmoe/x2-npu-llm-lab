@@ -39,10 +39,32 @@ $out = "$logDir\$Label"
 $useLock = $true
 if ($useLock) { . (Join-Path $PSScriptRoot 'npu-lock.ps1'); Enter-NpuLock "clover-run.ps1 $Label" }
 $sw = [Diagnostics.Stopwatch]::StartNew()
+# Host CPU usage is a first-class metric (goal: NPU-only inference leaves the CPU idle for the user).
+# Sample the process CPU time every 250 ms; report average busy cores over the generation window.
+$samples = [System.Collections.Generic.List[object]]::new()
 try {
-    $run = Start-Process -FilePath "$pkgDir\bin\$Exe" -ArgumentList $a -WindowStyle Hidden -PassThru -Wait `
+    $run = Start-Process -FilePath "$pkgDir\bin\$Exe" -ArgumentList $a -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput "$out.log" -RedirectStandardError "$out.err"
+    $null = $run.Handle   # keep the handle so CPU times stay readable after exit
+    while (-not $run.HasExited) {
+        try { $samples.Add([pscustomobject]@{ t = $sw.Elapsed.TotalSeconds; cpu = $run.TotalProcessorTime.TotalSeconds }) } catch {}
+        Start-Sleep -Milliseconds 250
+    }
+    $run.WaitForExit()
 } finally { if ($useLock) { Exit-NpuLock } }
+$samples | ForEach-Object { "{0:F2},{1:F3}" -f $_.t, $_.cpu } | Set-Content "$out.cpu.csv"
 "EXIT=$($run.ExitCode) WALL=$([math]::Round($sw.Elapsed.TotalSeconds,1))s"
+$dec = Select-String -Path "$out.err" -Pattern 'decoded +\d+ tokens in +([\d.]+) seconds' | Select-Object -Last 1
+$evl = Select-String -Path "$out.err" -Pattern 'eval time = +([\d.]+) ms' | Select-Object -Last 1
+$genSec = if ($dec) { [double]$dec.Matches[0].Groups[1].Value } elseif ($evl) { [double]$evl.Matches[0].Groups[1].Value / 1000 } else { 0 }
+if ($genSec -gt 1 -and $samples.Count -gt 8) {
+    # generation ends just before exit (teardown < ~1 s); window = [last sample - 0.5 - genSec, last sample - 0.5]
+    $tEnd = $samples[$samples.Count - 1].t - 0.5; $tBeg = $tEnd - $genSec
+    $w = @($samples | Where-Object { $_.t -ge $tBeg -and $_.t -le $tEnd })
+    if ($w.Count -ge 2) {
+        $cores = ($w[-1].cpu - $w[0].cpu) / ($w[-1].t - $w[0].t)
+        "HOST_CPU busy cores during generation = {0:F2} (window {1:F1}s, {2} samples; total process CPU {3:F1}s)" -f $cores, ($w[-1].t - $w[0].t), $w.Count, $samples[-1].cpu
+    }
+}
 Select-String -Path "$out.err" -Pattern 'decoded|accept|n_draft|speed|tok/s|t/s|error|failed|abort' |
     ForEach-Object { $_.Line } | Select-Object -Last 14
