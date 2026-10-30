@@ -4,6 +4,9 @@ Started 2026-10-29. Goal: run [Diffuspace/Clover-35B-A3B-Preview](https://huggin
 (block-diffusion MoE, Qwen3.6-35B-A3B derivative) with the whole graph on HTP0, correct first, then fast.
 Same method as the Qwen3.6 MoE campaign (AGENT_COORDINATION.md rules apply unchanged: one NPU process at a time
 via `npu_campaign/npu-lock.ps1`, interleaved A/B only, per-agent worktree + append-only log, spoofs off by default).
+**Addition for this campaign: CPU-only model runs and `test-backend-ops perf` also hold the lock** (unified LPDDR:
+a CPU model run steals the NPU's DRAM bandwidth; Clover HTP runs still execute fallback ops on the CPU). Builds use
+`--parallel 4`. Timings from runs that overlapped another model process are invalid.
 
 ## Inputs
 
@@ -95,3 +98,17 @@ token is a near-tie style choice: CPU bf16-KV, CPU f16-KV and HTP each pick a di
 
 Decision: kernel work = (a) HTP BF16 CPY + fused round, (b) HTP-resident stable top-k; in parallel, (c) trace the
 KLD gap, (d) remove the re-verify forward.
+
+### 2026-10-30 00:10 - calibration bench (CONTAMINATED: agent builds + a concurrent CPU-only Clover run)
+
+`llama-bench -ngl 99 -dev HTP0 -fa 1 -ctk f16 -ctv f16 -r 2`, pkg-clover-base:
+
+| model | pp16 | pp256 | tg32 |
+| --- | ---: | ---: | ---: |
+| Qwen3.6-35B-A3B Q4_0 (same upstream build) | 76.9 +- 8.4 | 360.0 +- 8.7 | 27.05 +- 0.34 |
+| Clover-35B-A3B Q4_0 | **2.30** +- 0.01 | 50.4 +- 8.4 | 6.54 +- 2.00 |
+
+Qwen3.6 is the target ceiling for Clover's causal path once the fallbacks are gone (same graph modulo bf16 rounds
+and the Clover router). Clover pp16 = 2.3 tok/s is pathological (draft-self's 16-token verify batches ran ~46 tok/s
+in the same build), suspect: `n_tokens != n_outputs` "prefill" branch of the graph. Re-measure on a quiet machine.
+Rule added: CPU-only model runs take the NPU lock (clover-run.ps1 now always locks).

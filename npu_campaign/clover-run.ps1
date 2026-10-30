@@ -35,7 +35,8 @@ $a = "-m `"$repo\$Model`" -f `"$repo\$Prompt`" $spec --temp 0 --top-k 1 --seed 4
      "-c $Ctx -n $NPredict -b 256 -ub 256 -ngl $ngl --device $Device -t $Threads -tb $Threads --flash-attn on --color off $Extra"
 $out = "$logDir\$Label"
 "$(Get-Date -Format o) $Exe $a" | Set-Content "$out.cmd"
-$useLock = $Device -ne 'none'
+# CPU-only runs take the lock too: unified LPDDR, a CPU model run steals the NPU's DRAM bandwidth.
+$useLock = $true
 if ($useLock) { . (Join-Path $PSScriptRoot 'npu-lock.ps1'); Enter-NpuLock "clover-run.ps1 $Label" }
 $sw = [Diagnostics.Stopwatch]::StartNew()
 try {
