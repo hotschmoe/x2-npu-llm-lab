@@ -154,3 +154,12 @@ Interim (rollback agent): rollback alone 4.75 vs 4.91 legacy, rollback + bonus d
 - Note: a full CPU trace (`-Filter '.'`) perturbs CPU results (breaks RMS_NORM+MUL fusion); named filters are safe.
 Details: npu_campaign/CLOVER_TRACE_LOG.md. Tools: LLAMA_TENSOR_TRACE_FILE/_FILTER, COMMON_DEBUG_DUMP_DIR/_RE,
 clover-draft-dump (CLOVER_MULTI_STRIDE), LLAMA_CLOVER_NO_BF16_ROUND (spoof), make_f32dense_gguf.py.
+
+### 2026-10-30 ~05:30 - pkg-clover-m2 (merged clover 0478cfe: topk + trace tools) gates
+
+- KLD vs F32-dense reference: 0.019871, same-top 93.137%, PPL 15.0832 -> **GATE PASS** (identical to M0: top-k change is exact).
+- llama-bench HTP0 (inside the lock, no other llama process; agent builds possibly running): pp16 27.3 +- 5.2,
+  pp256 169.1 +- 15.7, tg32 5.87 +- 0.32. The M0 "pp16 = 2.3" was contamination + host top-k, not a graph pathology.
+  tg32 ~170 ms/token over ~500 CPU<->HTP splits (~0.34 ms per split round trip) -> the bf16 CPY islands are the lever.
+- rollback agent interim (HTP, pre-merge): legacy loop 4.91, rollback+bonus 5.44, rollback+bonus n_max 5 **6.66**;
+  plain causal decode 10.1 tok/s still beats speculation while every forward pays the CPU islands.
