@@ -65,8 +65,7 @@ e1b35dd test-backend-ops perf cases, 85ceeab graph cache + HOSTSTAT. Package of 
 
 ### The ab3b-3 hang (orphan, 09:16)
 ab3b-3-allpoll log stops at "llama threadpool init" 12 s after start. Cause of the ORPHAN: I stopped background tasks of my own session (TaskStop / Stop-Job) at ~09:13-09:16; the old blk.ps1 launched
-clover-run.ps1 in-process but the parent died, leaving the child running with no lock. Was the hang itself OPPOLL=1? Evidence says no: all 6 other OPPOLL=1 starts (ab3a #1 #3, ab3b #2 + the two OPPOLL arms
-before it) came up fine, the killed run overlapped bf16's HTP0 runs for 34 min (two processes opening HTP0 / mapping ~20 GB each) and it stopped before the first HTP graph - the same signature as the earlier
+clover-run.ps1 in-process but the parent died, leaving the child running with no lock. Was the hang itself OPPOLL=1? Evidence says no: all 4 other OPPOLL=1 starts (ab3a #1 #3, ab3b #2, fin-c poll) came up fine, the killed run overlapped bf16's HTP0 runs for 34 min (two processes opening HTP0 / mapping ~20 GB each) and it stopped before the first HTP graph - the same signature as the earlier
 two-process overlaps in this campaign. Not provable without a repeat; fin-c below repeats OPPOLL=1 on the final package (one clean run), and the new scripts kill their child on timeout.
 Also: a 2 h 17 min "gc4096 0.031 tok/s" row (gca #2) was the laptop sleeping inside my lock hold (cpu.csv has ~600 samples in 8287 s) - discard it; the graph-cache A/B was redone in fin-c.
 New launch discipline (coordinator item 3): clover-port/blk2.ps1, tbo.ps1, bench.ps1, clover-kld.ps1 all do Enter-NpuLock -> Start-Process + WaitForExit(timeout) -> finally kill the child -> Exit-NpuLock in ONE process.
@@ -115,9 +114,28 @@ Not completed in the time left (fin-c queued behind other agents; results are ap
 * Merge `clover-port` (all commits above) into `clover`: every code change is bit-exact (KLD/PPL identical, identical token streams in fin-b), self-contained (htp-dcache.c/main.c/htp-ctx.h; htp-tensor.h + htp-repack.h constants;
   gated-delta-net-ops.{c,h} + htp-kparams.cpp; ggml-hexagon.cpp flush_pending/graph_compute; test-backend-ops perf block "BEGIN/END port agent"). Expected conflicts with bf16: none in htp-fusion/kparams except one hunk in htp-kparams.cpp (GDN kernel selection) and ggml-hexagon.cpp env block.
 * Env defaults: leave upstream defaults (OPPOLL=0) in the code, but for Clover runs on Windows set `GGML_HEXAGON_OPPOLL=1` (+10% on the legacy loop in ab3a: 5.729 vs 5.243/5.186; hybrid 0.5 ms spin +5.7%) - the host core is already 100% busy in the blocking wait, so it costs nothing;
-  the 400 ms bound and the response watchdog make it safe against the old infinite-spin hang. One OPPOLL=1 start hung only inside the orphaned run (see verdict above); no hang in 6 other OPPOLL=1 starts.
+  the 400 ms bound and the response watchdog make it safe against the old infinite-spin hang. One OPPOLL=1 start hung only inside the orphaned run (see verdict above); no hang in 4 other OPPOLL=1 starts.
   `GGML_HEXAGON_GDN_SNAPDMA` default 1 (needed by rollback), `GGML_HEXAGON_GRAPH_CACHE` default 1 (old behaviour; raise only after fin-c shows hits), `GGML_HEXAGON_HOSTSTAT=1` for diagnostics.
 * Skipped (reasons): xp flat expert pipeline (M=1..4 only; Clover 1-row decode is ~94 ms of which the DSP is a minor part -> <0.5% of a step), GDN row-block kernel (-3.6% of one op), pipelined HMX MoE + 2 MB ddr_spad + exact gather
   (matmul-ops.c diverged by ~900 lines; 16-row MoE is 60+32 ms per draft pass of ~260 ms and near the DMA floor; the 2 MB spad only matters above 512 KB row maps, i.e. ub >= 512), fusions/replay (upstream already has the fusion set; replay is RFC-grade),
   Q8_0 contiguous kernels (not used by Clover), HTP_OP_MAX_BUFS 64 (no gain upstream; n-bufs already 64 here).
 * Next ideas: event/callback wait for dspqueue (see above); fewer splits (bf16 CPY fusion) so the DSP share rises above 25%; multi-slot graph cache if fin-c shows hits; Q8_0/Q4_1 tile padding the same way (Clover down-proj is Q4_0 so not needed).
+
+### fin-c (landed 11:25): attribution inside the rollback product config on pkg final (single runs, one lock hold, identical stream hash D9B44E9DCF in all four; HOSTSTAT=1 on all)
+| arm | tok/s | note |
+| --- | ---: | --- |
+| snap1 (default) | 7.217 | (final without HOSTSTAT in fin-b: 7.421 / 7.352) |
+| snap0 (GGML_HEXAGON_GDN_SNAPDMA=0) | 7.373 | within run-to-run noise (+-1.5%) of snap1: at K<=6 the e2e effect of the 14% op gain (~2 ms/pass) is below the noise floor; op-level gain is real (K=16 -19%) |
+| **poll (GGML_HEXAGON_OPPOLL=1)** | **8.136** | **+10.1% vs final fin-b mean 7.387 (+12.7% vs the same-block snap1)**; clean start, no hang, same stream |
+| gc4096 (GGML_HEXAGON_GRAPH_CACHE=4096) | 7.299 | no measurable gain; hoststat lines were not visible (backend INFO logs need -v) - a -v rerun (fin-d) was queued, see below if it landed |
+=> Verdict on the ab3b-3 hang: OPPOLL=1 (or the 0.5 ms hybrid) started and ran cleanly in 4 of 4 other launches (ab3a #1, ab3a #3, ab3b #2, fin-c poll) so the orphan's startup stall was contention with the bf16 HTP0 run it overlapped, not an OPPOLL=1 bug.
+Recommended product config on this machine: rollback + `LLAMA_SPEC_BONUS=1` + `--spec-draft-n-max 5` + `GGML_HEXAGON_OPPOLL=1`: 7.20 (rs6) -> 7.39 (port, +2.5%) -> 8.14 (+OPPOLL, +13% over rs6).
+
+### fin-d (11:43, -v so the hoststat lines are visible; rollback config, 128 tokens, same stream hash 86206C17 in both): graph cache is a dead end
+GRAPH_CACHE=1: 7.246 tok/s; GRAPH_CACHE=4096: 7.168 tok/s (noise). hoststat in both: **graphs hit 0 / miss 32000** (310743 ops, 9.7 ops per sub-graph), kparams solve+fusion-tag total only **152-195 ms** for the whole run,
+dspqueue_read wait 16.7-16.9 s in 31991 reads (0.52 ms mean per batch); graph_compute total 56-60 s of which "enqueue" is almost all of it but it includes the one-time buffer mapping / first-batch costs at start-up, so it is not a per-pass number.
+=> the sched assigns a NEW uid to every split on every re-split (ggml-backend.cpp: `sched->splits[i].graph.uid = ggml_graph_next_uid()`), so no uid-keyed cache can ever hit in Clover, and re-solving is negligible anyway.
+Keep 85ceeab only for HOSTSTAT (diagnostics; the N-entry cache is harmless at default N=1); do not expect speed from it. The host-side cost between batches is in enqueue/sched/CPU splits, not in kparams.
+
+### Closing state (11:45)
+No process of mine is running and the lock is released. Packages: pkg-clover-port-{dr,pad,spin,all,gc,final} (final = tip bcce4b9). Worktree llama.cpp-hexagon-clover-port (branch clover-port). Nothing pushed.

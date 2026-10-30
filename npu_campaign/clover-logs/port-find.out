@@ -1,0 +1,2 @@
+﻿fin-d #1 gc1: 7.246 tok/s, host cores 0.99, out-hash 86206C1755, timeout False, other llama procs before 0
+fin-d #2 gc4096: 7.168 tok/s, host cores 0.98, out-hash 86206C1755, timeout False, other llama procs before 0
