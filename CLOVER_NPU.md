@@ -122,3 +122,16 @@ CPU fallback ops, host spin-waits on HTP completion, full-vocab argmax/entropy o
 recurrent-state checkpoint memcpy. `clover-kld.ps1` is the locked KLD gate helper.
 Incident: an unlocked HTP0 perplexity run overlapped locked runs 00:09-00:15 (one run measured 0.57 tok/s);
 timings in that window are void.
+
+### 2026-10-30 ~04:10 - M1: router/coreset top-k on HTP (topk agent, merged into `clover` d587232)
+
+`ggml_top_k_stable` (GGML_OP_TOP_K with op_params[0]=1: value desc, ties -> lower index; strict total order, so any
+correct sort equals the old host std::sort custom op). CPU: partial_sort with that comparator. HTP: composite
+(value, index) key in argsort-ops.c, rows <= 1024. Graph sorts the full 256 row + view of k (a k-wide TOP_K output
+crashed the DSP in-model; root cause not found - open item). Oracles: 140/140 HTP0 and CPU vs explicit
+std::stable_sort (76 synthetic incl. heavy ties/masks/+-inf/denormals, 64 real-logit fixtures); negative control
+(GGML_HEXAGON_TOPK_SPOIL=1) fails broadly. Audit: 0 CUSTOM; splits draft 1162->922, verify 762->682, decode 582->502.
+KLD vs CPU unchanged (0.047923, same-top 89.216%), CPU PPL 15.4413 exactly. Interleaved clean A/B: +5.0..5.5%
+(4.89-4.91 -> 5.14-5.16 tok/s), host CPU 1.07-1.16 -> 0.98-0.99 busy cores. Details: npu_campaign/CLOVER_TOPK_LOG.md.
+Pushed: hotschmoe/llama.cpp `clover-hexagon`.
+Interim (rollback agent): rollback alone 4.75 vs 4.91 legacy, rollback + bonus decode 5.36 (+9%) on HTP0.
