@@ -1,0 +1,4 @@
+<|im_start|>user
+A train leaves at 3:15 PM and travels 180 km at 72 km/h. When does it arrive? Show the steps.<|im_end|>
+<|im_start|>assistant
+<think>
