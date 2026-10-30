@@ -55,3 +55,61 @@ was rewritten to list every thread with user/kernel time and start address; re-r
   so HTP0 Qwen decode is not bit-reproducible run to run; output-hash identity can't be used as the gate for host-only changes here.
 - Fixed `idle-ab.ps1`: window from the stderr timestamp of the perf line (process-relative), per-arm `extra` args, prints the top threads, kills the
   process after the perf print (saves ~50 s of lock time per arm) unless `keep`; teardown duration is reported for kept arms.
+- 11:03 lock incident (mine): I aborted the q2 QoS A/B (its CPU window was the broken one) by killing its PowerShell at ~11:02:58. The lock owner
+  was then dead and owner.txt older than 2 min, so bf16-bundleC took the lock at 11:02:59 while my llama-completion child (pid 23080, loading the
+  model since 11:01:58) was still terminating (process teardown takes tens of seconds). The overlap fell in bf16-bundleC's model-load phase
+  (first ~70 s), not in its generation window, but bf16-bundleC "fin" load time may be inflated. Lesson: wait for the child to exit before the lock
+  holder dies. q2 data kept: base 28.96 tok/s (hash A0E9C96D, differs from q1 base 9ECA6290 -> nondeterminism confirmed).
+
+## 2026-10-30 11:15 Re-analysis of every Clover run's saved CPU trace (clover-logs/*.cpu.csv + stderr timestamps)
+Window = [t(decoded line) - gen_s, t(decoded line)] from the stderr timestamp vs. the old window anchored at process exit:
+| run (HTP0 unless noted) | tok/s | gen s | host cores, real generation window | old metric | teardown after gen |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ab2b-2-topkc (port A/B, topk-c) | 5.12 | 50.2 | 6.48 | 0.99 | 51.8 s |
+| ab2b-1-all (port all) | 5.21 | 49.3 | 6.55 | 0.99 | 54.6 s |
+| ab3a-1-allpoll (OPPOLL=1, 400 ms spin) | 5.73 | 44.9 | 7.39 | 0.98 | 54.5 s |
+| ab3a-3-allpoll05 (OPPOLL=1, 0.5 ms) | 5.51 | 46.6 | 6.90 | 0.98 | 54.4 s |
+| rb-hl2-rs6 (rollback, d5) | 6.69 | 38.4 | 6.88 | 0.99 | 51.0 s |
+| gca-1-gc1 | 5.16 | 49.8 | 6.53 | 0.99 | 54.8 s |
+| bf16-fin-A1 (bf16 control) | 5.03 | 51.1 | 6.46 | 0.98 | 53.7 s |
+| bf16-fin-B1 (bf16 agent final pkg) | 8.79 | 29.2 | **0.18** | 0.98 | 53.4 s |
+| rb-cmsw2-rs6b (CPU device, d5) | 33.06 | 7.8 | 11.95 | 10.26 | 1.7 s |
+=> Clover draft-self on HTP0 with the current op coverage really uses ~6.5 host cores during generation (ggml-cpu threadpool doing the
+CPU-fallback splits, 8 threads), not 0.99. OPPOLL=1 adds ~0.9 core (the main thread spinning in read_noblock). The bf16 agent's final package
+(CPU fallbacks moved to HTP) brings it to 0.18 cores at +75% tok/s: that, not the wait path, is the idle-host fix for Clover.
+Every HTP0 process spends 51-55 s at ~1 core (kernel) in teardown after generation (buffer release at exit); CPU-device runs 2 s.
+
+## 2026-10-30 11:40 Fix measured on Qwen3.6 plain decode: `--poll 0` (or `-t 1`) -> 0.05 host cores, same tok/s
+`clover-idle/idle-ab.ps1 -Label q3` (fixed window from stderr timestamps; one lock hold 11:27-11:38; pkg-clover-idle-base; Qwen3.6-35B-A3B Q4_0,
+HTP0, 400 tokens, -t 8 -tb 8, A B C A B order):
+| arm | tok/s | host cores (gen window) | busiest thread | main thread | teardown |
+| --- | ---: | ---: | --- | ---: | ---: |
+| base (default `--poll 50`) | 28.79 | 0.903 | 0.151 user (7 ggml-cpu workers at 0.108-0.151 each) | 0.031 | 52.3 s (kept) |
+| `--poll 0` | 28.74 | **0.047** | 0.036 (main) | 0.036 | killed after perf print |
+| `-t 1 -tb 1` | 28.76 | **0.041** | 0.033 (main) | 0.033 | killed |
+| base repeat | 28.30 | 0.974 | 0.145 user (7 workers 0.120-0.145) | 0.031 | killed |
+| `--poll 0` repeat | 27.96 | **0.049** | 0.038 (main) | 0.038 | killed |
+Means: default 28.55 tok/s / 0.94 cores; `--poll 0` 28.35 tok/s / 0.048 cores (-0.7%, inside the default arm's own 28.30-28.79 spread);
+`-t 1` 28.76 / 0.041. Target (< 0.15 busy cores on Qwen plain decode) met with a run-time flag, no code change needed.
+Mechanism: each decode token still runs a tiny CPU graph (ggml-cpu backend), which wakes the 8-thread pool; with the default poll level the 7
+workers then spin in ggml_graph_compute_poll_for_work before sleeping on their condition variable (~4 ms each per 35 ms token).
+Output hashes differ in every run (also between identical arms), so bit-identity is not a usable check on HTP0 Qwen decode; the flags only change
+CPU-threadpool idling, not numerics. Clover KLD gate NOT run (no time left in the lock queue); the only code change left on branch clover-idle
+(7e2ae41) initializes the FastRPC QoS latency field (was uninitialized stack data) - host-only, no numeric path.
+
+## Summary / root cause / next steps
+- Root cause of "one host thread at 0.99 core": neither the driver nor ggml spinning during generation. It is a measurement artifact: every HTP0
+  process spends ~51-55 s after generation releasing its HTP-mapped buffers at ~1 core in kernel mode, and clover-run.ps1 / thr.ps1 / idle-ab v1
+  anchored the "generation window" at process exit, so they measured teardown. Blocking dspqueue_read on Windows sleeps properly (main thread
+  0.02-0.04 core); OPPOLL=1 is the only wait path that spins (+0.9 core in the Clover traces).
+- Real generation-time host load: Qwen plain decode 0.90-0.97 cores = ggml-cpu workers polling (fix: `--poll 0` or `-t 1`, 0.04-0.05 cores, no
+  tok/s change). Clover draft-self with today's CPU fallbacks: ~6.5 cores (real CPU split work); the bf16 agent's final package (bf16-fin-B1)
+  measures 0.18 cores at 8.79 tok/s, i.e. moving fallbacks to HTP is the Clover idle fix.
+- clover-run.ps1 fixed (window from the decoded/eval-time stderr timestamp, prints teardown). clover-port/thr.ps1 still has the old window
+  (port agent's tool, not touched). Old "HOST_CPU busy cores during generation" numbers in other logs are teardown numbers.
+- The experimental host wait modes (GGML_HEXAGON_WAIT=1 timer-sleep poll, =2 dspqueue packet callback) worked and cost no tok/s
+  (28.1-28.6 vs 28.3) but were reverted (main thread already idle); they remain in history as 82514d2.
+- Next: (1) make the product default `--poll 0` (or poll 0 whenever every layer is offloaded) for llama-server/cli on NPU; (2) measure Clover
+  with `--poll 0` (expected to cut the polling share of 6.5 cores, may cost wake latency per CPU split) and with the bf16 package + `--poll 0`;
+  (3) teardown: 52 s of a core to unmap ~20 GB at exit (model unload) - check whether buffers can be released in bulk / without per-page work;
+  (4) run the Clover KLD gate on 7e2ae41 for completeness (expected identical; host-only change).
